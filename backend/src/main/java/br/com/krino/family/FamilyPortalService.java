@@ -33,7 +33,8 @@ public class FamilyPortalService {
         return jdbcTemplate.query(
                 "select st.id, st.registration, st.name, e.academic_year, c.id class_id, c.name class_name, s.id school_id, s.name school_name "
                         + "from linked_resource_access lra join student st on st.id::text = lra.resource_reference "
-                        + "left join student_enrollment e on e.student_id = st.id and e.status = 'ACTIVE' "
+                        + "left join lateral (select se.academic_year, se.class_id from student_enrollment se where se.student_id = st.id and se.status = 'ACTIVE' "
+                        + "order by se.academic_year desc, se.enrollment_date desc, se.id desc limit 1) e on true "
                         + "left join school_class c on c.id = e.class_id left join school_unit s on s.id = c.school_id "
                         + "where lra.user_id = ? and lra.resource_type = 'STUDENT' and lra.access_level in ('READ', 'EDIT') and st.status = 'ACTIVE' order by st.name",
                 (rs, rowNum) -> new LinkedStudentView(rs.getLong("id"), rs.getString("registration"), rs.getString("name"),
@@ -79,10 +80,12 @@ public class FamilyPortalService {
         accessService.requireLinkedStudent(studentId, authentication);
         return jdbcTemplate.query(
                 "select a.id, a.audience_type, a.title, a.body, a.published_at, s.name school_name "
-                        + "from student_enrollment e join school_class c on c.id = e.class_id join school_unit s on s.id = c.school_id "
+                        + "from student st join lateral (select se.class_id from student_enrollment se where se.student_id = st.id and se.status = 'ACTIVE' "
+                        + "order by se.academic_year desc, se.enrollment_date desc, se.id desc limit 1) e on true "
+                        + "join school_class c on c.id = e.class_id join school_unit s on s.id = c.school_id "
                         + "join family_announcement a on a.school_id = c.school_id and a.active = true "
-                        + "and (a.audience_type = 'SCHOOL' or (a.audience_type = 'CLASS' and a.class_id = c.id) or (a.audience_type = 'STUDENT' and a.student_id = e.student_id)) "
-                        + "where e.student_id = ? and e.status = 'ACTIVE' order by a.published_at desc, a.id desc",
+                        + "and (a.audience_type = 'SCHOOL' or (a.audience_type = 'CLASS' and a.class_id = c.id) or (a.audience_type = 'STUDENT' and a.student_id = st.id)) "
+                        + "where st.id = ? order by a.published_at desc, a.id desc",
                 (rs, rowNum) -> new AnnouncementView(rs.getLong("id"), rs.getString("audience_type"), rs.getString("title"), rs.getString("body"),
                         rs.getString("school_name"), rs.getObject("published_at", OffsetDateTime.class)), studentId);
     }
@@ -155,7 +158,7 @@ public class FamilyPortalService {
 
     private CurrentEnrollment currentEnrollment(long studentId) {
         List<CurrentEnrollment> rows = jdbcTemplate.query(
-                "select e.class_id, c.school_id from student_enrollment e join school_class c on c.id = e.class_id where e.student_id = ? and e.status = 'ACTIVE' order by e.academic_year desc, e.enrollment_date desc limit 1",
+                "select e.class_id, c.school_id from student_enrollment e join school_class c on c.id = e.class_id where e.student_id = ? and e.status = 'ACTIVE' order by e.academic_year desc, e.enrollment_date desc, e.id desc limit 1",
                 (rs, rowNum) -> new CurrentEnrollment(rs.getLong("class_id"), rs.getLong("school_id")), studentId);
         if (rows.isEmpty()) throw new IllegalArgumentException("O estudante não possui matrícula ativa para iniciar comunicação com a escola.");
         return rows.getFirst();

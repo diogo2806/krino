@@ -34,7 +34,7 @@ public class SecretariaRegistryController {
     public SecretariaRegistryService.SchoolView updateSchool(@PathVariable long id, @Valid @RequestBody SecretariaRegistryService.SchoolRequest request, Authentication authentication) { return service.updateSchool(id, request, authentication); }
 
     @GetMapping("/students")
-    public List<SecretariaRegistryService.StudentView> students(@RequestParam(required = false) Long schoolId, @RequestParam(required = false) Integer year, @RequestParam(defaultValue = "") String search, Authentication authentication) { return service.listStudents(schoolId, year, search, authentication); }
+    public List<SecretariaRegistryService.StudentView> students(@RequestParam(required = false) Long schoolId, @RequestParam int year, @RequestParam(defaultValue = "") String search, Authentication authentication) { return service.listStudents(schoolId, year, search, authentication); }
 
     @PostMapping("/students")
     public SecretariaRegistryService.StudentView createStudent(@Valid @RequestBody SecretariaRegistryService.StudentRequest request, Authentication authentication) { return service.createStudent(request, authentication); }

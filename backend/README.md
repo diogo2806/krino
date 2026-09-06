@@ -1,6 +1,33 @@
-# Backend - requisitos de implementação
+# Backend KRINO
 
-Este arquivo traduz os requisitos do produto para responsabilidades de backend. A tecnologia específica não é imposta pelos documentos da licitação.
+API em Java 21 + Spring Boot, executada isoladamente no EasyPanel e conectada a PostgreSQL externo por variáveis de ambiente.
+
+A tecnologia específica não era imposta pelos documentos da licitação; a fundação adotada na issue #2 usa Java 21, Spring Boot, JDBC, Flyway e PostgreSQL.
+
+## Variáveis de ambiente
+
+| Variável | Obrigatória | Finalidade |
+|---|---|---|
+| `DB_URL` | sim | JDBC URL do PostgreSQL |
+| `DB_USERNAME` | sim | usuário do banco |
+| `DB_PASSWORD` | sim | senha do banco |
+| `FRONTEND_ORIGIN` | não | origem autorizada no CORS; padrão local `http://localhost:5173` |
+| `DB_POOL_MAX` | não | limite do pool; padrão `10` |
+| `PORT` | não | porta HTTP; padrão `8080` |
+
+A ausência das variáveis obrigatórias de banco impede a inicialização da aplicação, evitando execução com configuração incompleta.
+
+## Execução local
+
+```bash
+DB_URL=jdbc:postgresql://localhost:5432/krino DB_USERNAME=krino DB_PASSWORD=krino mvn spring-boot:run
+```
+
+Saúde técnica: `GET /api/health`.
+
+## Docker / EasyPanel
+
+O serviço `krino-backend` deve usar `backend/Dockerfile`. Não existe dependência de `docker-compose.yml`.
 
 ## Domínios mínimos
 

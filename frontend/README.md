@@ -1,4 +1,6 @@
-# Frontend - requisitos de implementação
+# Frontend KRINO
+
+Aplicação React + TypeScript + Vite, empacotada em Nginx para execução isolada no EasyPanel.
 
 ## Regras estruturais obrigatórias do projeto
 
@@ -19,6 +21,8 @@ Toda página nova ou alterada deve exibir no **header** um botão/ícone de Manu
 - `title`;
 - abertura em modal/dialog;
 - conteúdo específico e atualizado com: finalidade, campos, botões, filtros, ações, regras, permissões, fluxos e mensagens/estados possíveis.
+
+A implementação-base reutilizável fica em `src/components/manual/ScreenManual.tsx`.
 
 ## Estados obrigatórios de UX
 
@@ -73,3 +77,24 @@ Administração
 - Validações de calendário/horário no diário devem explicar por que o lançamento foi bloqueado.
 - Estado do transporte deve usar nomenclatura consistente em todas as telas.
 - Resultados e dashboards devem deixar claro o nível de análise selecionado: Rede, Escola, Turma ou Estudante.
+
+## API em runtime
+
+O container gera `/config.js` na inicialização usando `API_URL`, por exemplo:
+
+```text
+API_URL=https://api.exemplo.gov.br/api
+```
+
+Isso evita recompilar o frontend para alterar o endereço do backend. O arquivo `public/config.js` usa `http://localhost:8080/api` somente para desenvolvimento local.
+
+## Execução local
+
+```bash
+npm install
+npm run dev
+```
+
+## Docker / EasyPanel
+
+O serviço `krino-frontend` deve usar `frontend/Dockerfile`. O frontend não acessa PostgreSQL diretamente e não depende de `docker-compose.yml`.

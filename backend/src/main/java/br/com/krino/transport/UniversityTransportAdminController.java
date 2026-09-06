@@ -80,13 +80,13 @@ public class UniversityTransportAdminController {
     }
 
     @GetMapping("/card-art")
-    @PreAuthorize(REVIEW_ACCESS + " or " + CARD_ART_WRITE)
+    @PreAuthorize(REVIEW_ACCESS)
     public UniversityTransportService.CardArtView cardArt(Authentication authentication) {
         return service.cardArt(authentication);
     }
 
     @PutMapping("/card-art")
-    @PreAuthorize(CARD_ART_WRITE)
+    @PreAuthorize("(" + REVIEW_ACCESS + ") and " + CARD_ART_WRITE)
     public UniversityTransportService.CardArtView updateCardArt(@RequestBody UniversityTransportService.CardArtInput input, Authentication authentication) {
         return service.updateCardArt(input, authentication);
     }

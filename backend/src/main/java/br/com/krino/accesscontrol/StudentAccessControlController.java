@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 
 import jakarta.validation.Valid;
+import jakarta.validation.Validator;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,10 +23,12 @@ public class StudentAccessControlController {
 
     private final StudentAccessCredentialService credentialService;
     private final StudentAccessEventService eventService;
+    private final Validator validator;
 
-    public StudentAccessControlController(StudentAccessCredentialService credentialService, StudentAccessEventService eventService) {
+    public StudentAccessControlController(StudentAccessCredentialService credentialService, StudentAccessEventService eventService, Validator validator) {
         this.credentialService = credentialService;
         this.eventService = eventService;
+        this.validator = validator;
     }
 
     @PostMapping("/identify")
@@ -44,16 +47,27 @@ public class StudentAccessControlController {
     }
 
     @PostMapping("/sync")
-    public List<SyncResult> sync(@Valid @RequestBody List<@Valid StudentAccessEventService.EventRequest> requests, Authentication authentication) {
+    public List<SyncResult> sync(@RequestBody List<StudentAccessEventService.EventRequest> requests, Authentication authentication) {
         if (requests == null || requests.isEmpty()) return List.of();
         if (requests.size() > 500) throw new IllegalArgumentException("Sincronize no máximo 500 eventos por lote.");
         List<SyncResult> results = new ArrayList<>();
         for (StudentAccessEventService.EventRequest request : requests) {
+            UUID clientEventId = request == null ? null : request.clientEventId();
+            if (request == null) {
+                results.add(new SyncResult(null, false, false, "Evento de sincronização vazio.", null));
+                continue;
+            }
+            var violations = validator.validate(request);
+            if (!violations.isEmpty()) {
+                String message = violations.iterator().next().getMessage();
+                results.add(new SyncResult(clientEventId, false, false, message, null));
+                continue;
+            }
             try {
                 StudentAccessEventService.EventView event = eventService.record(request, authentication);
-                results.add(new SyncResult(request.clientEventId(), true, event.duplicate(), null, event));
+                results.add(new SyncResult(clientEventId, true, event.duplicate(), null, event));
             } catch (IllegalArgumentException exception) {
-                results.add(new SyncResult(request.clientEventId(), false, false, exception.getMessage(), null));
+                results.add(new SyncResult(clientEventId, false, false, exception.getMessage(), null));
             }
         }
         return results;

@@ -1,75 +1,33 @@
-# Frontend - requisitos de implementação
+# Frontend KRINO
 
-## Regras estruturais obrigatórias do projeto
+Aplicação React + TypeScript + Vite, empacotada em Nginx para execução isolada no EasyPanel.
 
-1. Toda tela deve ser composta exclusivamente por componentes reutilizáveis de `frontend/src/components`.
-2. Antes de criar componente, procurar e reutilizar/evoluir um componente existente com a mesma finalidade.
-3. Estilos CSS/SCSS exclusivamente em `frontend/src/shared/styles`.
-4. `frontend/src/shared/styles/index.css` é o único ponto de entrada global de estilos.
-5. Não importar CSS/SCSS diretamente em páginas/componentes.
-6. Não usar estilo inline quando uma classe puder representar o padrão.
-7. Evitar seletores, tokens e componentes visuais duplicados/concorrentes.
+## Regras estruturais
+
+1. Toda tela é composta por componentes reutilizáveis de `frontend/src/components`.
+2. Antes de criar componente, deve-se procurar e reutilizar/evoluir o existente.
+3. Estilos ficam exclusivamente em `frontend/src/shared/styles`.
+4. `frontend/src/shared/styles/index.css` é o único ponto de entrada global.
+5. Componentes e páginas não importam CSS/SCSS diretamente.
+6. Evitar estilos inline e padrões visuais concorrentes.
 
 ## Manual da Tela
 
-Toda página nova ou alterada deve exibir no **header** um botão/ícone de Manual da Tela com:
+Toda página nova ou alterada deve exibir no header o componente reutilizável de Manual da Tela com `BookOpen`, `aria-label`, `title`, modal/dialog e conteúdo específico. A implementação-base fica em `src/components/manual/ScreenManual.tsx`.
 
-- ícone `BookOpen`;
-- `aria-label`;
-- `title`;
-- abertura em modal/dialog;
-- conteúdo específico e atualizado com: finalidade, campos, botões, filtros, ações, regras, permissões, fluxos e mensagens/estados possíveis.
+## API em runtime
 
-## Estados obrigatórios de UX
+O container gera `/config.js` na inicialização usando `API_URL`, por exemplo `API_URL=https://api.exemplo.gov.br/api`. Isso evita recompilar o frontend para alterar o endereço do backend.
 
-Toda tela que consulte dados deve prever:
+## Execução local
 
-- carregando;
-- sucesso;
-- vazio;
-- erro;
-- sem permissão quando aplicável;
-- feedback de salvar/processar;
-- confirmação para ação destrutiva quando aplicável.
-
-## Grupos de telas
-
-```text
-Autenticação
-Dashboard / indicadores
-Secretaria Escolar
-  - Estudantes
-  - Professores/profissionais
-  - Unidades escolares
-  - Turmas
-  - Matrículas/movimentações
-  - Calendário
-  - Horários
-  - Documentos escolares
-Diário de Classe
-Monitoramento Pedagógico
-Entrada e Saída
-Portal do Responsável
-Transporte Universitário
-Avaliações em Rede
-  - Avaliações
-  - Organização por escola/turma/estudante
-  - Gabaritos/importação
-  - Processamento
-  - Resultados
-  - Relatórios/dashboards
-Administração
-  - Usuários
-  - Perfis/permissões
-  - Auditoria
-  - Suporte
+```bash
+npm install
+npm run dev
 ```
 
-## UX Writing
+O arquivo `public/config.js` aponta localmente para `http://localhost:8080/api`.
 
-- Usar linguagem educacional clara, evitando termos internos de banco/API.
-- Botões devem descrever a ação: `Salvar diário`, `Solicitar ajuste`, `Aprovar solicitação`, `Processar gabaritos`, `Exportar dados`.
-- Mensagens de erro devem informar o problema e a ação necessária.
-- Validações de calendário/horário no diário devem explicar por que o lançamento foi bloqueado.
-- Estado do transporte deve usar nomenclatura consistente em todas as telas.
-- Resultados e dashboards devem deixar claro o nível de análise selecionado: Rede, Escola, Turma ou Estudante.
+## Docker / EasyPanel
+
+O serviço `krino-frontend` deve usar `frontend/Dockerfile`. O frontend não acessa PostgreSQL diretamente e não depende de `docker-compose.yml`.

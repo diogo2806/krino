@@ -1,0 +1,27 @@
+# Sistema operacional e IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+
+# Segredos e configuração local
+.env
+.env.*
+!.env.example
+*.local
+
+# Backend
+backend/target/
+backend/.mvn/timing.properties
+*.log
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Testes e cobertura
+coverage/
+playwright-report/
+test-results/

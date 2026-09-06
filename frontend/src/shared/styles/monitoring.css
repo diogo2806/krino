@@ -1,0 +1,26 @@
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 18px; }
+.metric-card { display: grid; gap: 7px; padding: 18px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-surface); }
+.metric-card__label, .metric-card__detail { color: var(--color-muted); }
+.metric-card__value { font-size: 1.65rem; }
+.metric-card__detail { font-size: .85rem; }
+.monitoring-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 18px; }
+.chart-card, .monitoring-source-card, .indicator-records { padding: 18px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-surface); }
+.chart-card { margin: 0; }
+.chart-card figcaption { margin-bottom: 14px; font-weight: 700; }
+.progress-chart { display: grid; gap: 14px; }
+.progress-chart__item { display: grid; gap: 5px; }
+.progress-chart__header { display: flex; justify-content: space-between; gap: 10px; }
+.progress-chart progress { width: 100%; height: 14px; accent-color: var(--color-primary); }
+.progress-chart small { color: var(--color-muted); }
+.trend-chart { display: block; width: 100%; min-height: 180px; color: var(--color-primary); }
+.trend-chart__axis { stroke: var(--color-border); stroke-width: 1; }
+.trend-chart__line { fill: none; stroke: currentColor; stroke-width: 3; }
+.trend-chart__point { fill: var(--color-surface); stroke: currentColor; stroke-width: 3; }
+.trend-chart__label, .trend-chart__value { fill: var(--color-muted); font-size: 12px; }
+.monitoring-source-card, .indicator-records { display: grid; gap: 12px; margin-bottom: 18px; }
+.monitoring-section-heading { display: flex; justify-content: space-between; align-items: end; gap: 12px; }
+.indicator-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+.indicator-card { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.indicator-card p { margin: 0; }
+.indicator-card__header { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+@media (max-width: 850px) { .monitoring-charts { grid-template-columns: 1fr; } .monitoring-section-heading, .indicator-card__header { align-items: stretch; flex-direction: column; } }

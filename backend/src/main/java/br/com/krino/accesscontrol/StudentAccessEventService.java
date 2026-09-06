@@ -13,22 +13,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import br.com.krino.audit.SecurityAuditService;
-import br.com.krino.accesscontrol.StudentAccessCredentialService.StudentIdentity;
 
 @Service
 public class StudentAccessEventService {
 
     private final JdbcTemplate jdbcTemplate;
-    private final StudentAccessCredentialService credentialService;
     private final AccessControlAccessService accessService;
     private final StudentAccessNotificationService notificationService;
     private final SecurityAuditService auditService;
 
-    public StudentAccessEventService(JdbcTemplate jdbcTemplate, StudentAccessCredentialService credentialService,
-                                     AccessControlAccessService accessService, StudentAccessNotificationService notificationService,
-                                     SecurityAuditService auditService) {
+    public StudentAccessEventService(JdbcTemplate jdbcTemplate, AccessControlAccessService accessService,
+                                     StudentAccessNotificationService notificationService, SecurityAuditService auditService) {
         this.jdbcTemplate = jdbcTemplate;
-        this.credentialService = credentialService;
         this.accessService = accessService;
         this.notificationService = notificationService;
         this.auditService = auditService;
@@ -44,7 +40,7 @@ public class StudentAccessEventService {
             return eventView(stored.id(), true);
         }
 
-        StudentIdentity identity = credentialService.resolve(request.code());
+        CapturedIdentity identity = validateCapturedIdentity(request.studentId(), request.schoolId(), request.classId(), request.capturedAt());
         accessService.requireWrite(identity.schoolId(), authentication);
         String eventType = normalizeEventType(request.eventType());
         String sourceType = normalizeSourceType(request.sourceType());
@@ -101,6 +97,20 @@ public class StudentAccessEventService {
         }, this::mapEventView);
     }
 
+    private CapturedIdentity validateCapturedIdentity(long studentId, long schoolId, long classId, OffsetDateTime capturedAt) {
+        List<CapturedIdentity> rows = jdbcTemplate.query(
+                "select st.id student_id, st.registration, c.id class_id, c.school_id "
+                        + "from student_enrollment e join student st on st.id = e.student_id join school_class c on c.id = e.class_id "
+                        + "where e.student_id = ? and e.class_id = ? and c.school_id = ? and e.enrollment_date <= ? "
+                        + "and not exists (select 1 from student_movement m where m.enrollment_id = e.id and m.effective_date <= ?)",
+                (rs, rowNum) -> new CapturedIdentity(rs.getLong("student_id"), rs.getString("registration"), rs.getLong("class_id"), rs.getLong("school_id")),
+                studentId, classId, schoolId, capturedAt.toLocalDate(), capturedAt.toLocalDate());
+        if (rows.isEmpty()) {
+            throw new IllegalArgumentException("O estudante não possuía vínculo válido com esta turma e unidade na data da captura.");
+        }
+        return rows.getFirst();
+    }
+
     private List<StoredEvent> storedEvents(UUID clientEventId) {
         return jdbcTemplate.query("select id, school_id from student_access_event where client_event_id = ?",
                 (rs, rowNum) -> new StoredEvent(rs.getLong("id"), rs.getLong("school_id")), clientEventId);
@@ -150,10 +160,13 @@ public class StudentAccessEventService {
     }
 
     private record StoredEvent(Long id, Long schoolId) {}
+    private record CapturedIdentity(Long studentId, String registration, Long classId, Long schoolId) {}
     private record SqlArrayParameter(String typeName, Object[] values) {}
 
     public record EventRequest(@NotNull(message = "Informe o identificador único do evento.") UUID clientEventId,
-                               @NotBlank(message = "Leia o QR Code ou informe a matrícula.") String code,
+                               @NotNull(message = "Informe o estudante identificado.") Long studentId,
+                               @NotNull(message = "Informe a unidade escolar da captura.") Long schoolId,
+                               @NotNull(message = "Informe a turma da captura.") Long classId,
                                @NotBlank(message = "Selecione Entrada ou Saída.") String eventType,
                                @NotNull(message = "Informe a data e hora da captura.") OffsetDateTime capturedAt,
                                boolean capturedOffline,

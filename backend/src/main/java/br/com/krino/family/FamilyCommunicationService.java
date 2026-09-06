@@ -105,6 +105,7 @@ public class FamilyCommunicationService {
         ConversationScope scope = conversationScope(conversationId);
         accessService.requireSchoolWrite(scope.schoolId(), authentication);
         if (scope.closed()) throw new IllegalArgumentException("Esta conversa está encerrada e não aceita novas mensagens.");
+        requireGuardianLink(scope.guardianUserId(), scope.studentId());
         jdbcTemplate.update("insert into family_message (conversation_id, sender_user_id, sender_type, body) values (?, ?, 'STAFF', ?)",
                 conversationId, accessService.userId(authentication), request.message().trim());
         jdbcTemplate.update("update family_conversation set updated_at = current_timestamp where id = ?", conversationId);
@@ -197,8 +198,8 @@ public class FamilyCommunicationService {
     }
 
     private ConversationScope conversationScope(long id) {
-        List<ConversationScope> rows = jdbcTemplate.query("select school_id, status from family_conversation where id = ?",
-                (rs, rowNum) -> new ConversationScope(rs.getLong("school_id"), "CLOSED".equals(rs.getString("status"))), id);
+        List<ConversationScope> rows = jdbcTemplate.query("select school_id, student_id, guardian_user_id, status from family_conversation where id = ?",
+                (rs, rowNum) -> new ConversationScope(rs.getLong("school_id"), rs.getLong("student_id"), rs.getLong("guardian_user_id"), "CLOSED".equals(rs.getString("status"))), id);
         if (rows.isEmpty()) throw new IllegalArgumentException("Conversa não encontrada.");
         return rows.getFirst();
     }
@@ -219,7 +220,7 @@ public class FamilyCommunicationService {
     }
 
     private record StudentSchool(Long classId, Long schoolId) {}
-    private record ConversationScope(Long schoolId, boolean closed) {}
+    private record ConversationScope(Long schoolId, Long studentId, Long guardianUserId, boolean closed) {}
     private record AnnouncementScope(Long schoolId) {}
 
     public record SchoolOption(Long id, String code, String name) {}

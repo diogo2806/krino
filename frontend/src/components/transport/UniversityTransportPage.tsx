@@ -21,9 +21,9 @@ type Decision = 'APPROVE' | 'ADJUST' | 'DENY';
 const manualSections = [
   { title: 'Finalidade', content: 'Cadastrar e acompanhar solicitações de transporte intermunicipal para cursos profissionalizantes, técnicos ou universitários. A equipe autorizada da SEDUC analisa os pedidos e, após aprovação, a carteirinha pode ser emitida.' },
   { title: 'Campos', content: 'Nome completo, documento pessoal, data de nascimento, telefone, tipo de curso, curso, instituição e dias necessários identificam a solicitação. Foto e comprovante de matrícula são obrigatórios antes do envio.' },
-  { title: 'Botões e filtros', content: 'Salvar solicitação grava o cadastro; Enviar solicitação encaminha para análise. Na análise, o filtro Status reduz a fila. Iniciar análise, Aprovar, Solicitar ajuste e Negar alteram o andamento. Configuração da arte define os textos e a cor de destaque da carteirinha.' },
-  { title: 'Regras', content: 'O estudante só altera pedidos em rascunho ou quando houver ajuste solicitado. Foto e comprovante devem existir antes do envio e da aprovação. Negativa e solicitação de ajuste exigem motivo. A carteirinha só fica válida após aprovação, dentro da validade informada e com arte aprovada pela SEDUC.' },
-  { title: 'Permissões', content: 'O estudante do transporte consulta e altera somente as próprias solicitações. A fila e as decisões exigem permissão da SEDUC. A configuração da arte possui permissão específica. Todas as autorizações também são verificadas no backend.' },
+  { title: 'Botões e filtros', content: 'Salvar solicitação grava o cadastro; Enviar solicitação encaminha para análise. Na análise, o filtro Status reduz a fila. Iniciar análise abre a etapa de decisão; depois disso, Aprovar, Solicitar ajuste e Negar registram o resultado. Configuração da arte define os textos e a cor de destaque da carteirinha.' },
+  { title: 'Regras', content: 'O estudante só altera pedidos em rascunho ou quando houver ajuste solicitado. Foto e comprovante devem existir antes do envio e da aprovação. A SEDUC deve iniciar a análise antes de decidir. Negativa e solicitação de ajuste exigem motivo. A carteirinha só fica válida após aprovação, dentro da validade informada e com arte aprovada pela SEDUC.' },
+  { title: 'Permissões', content: 'O estudante do transporte consulta e altera somente as próprias solicitações. A fila e as decisões exigem permissão municipal da SEDUC. A configuração da arte possui permissão municipal específica. Todas as autorizações também são verificadas no backend.' },
   { title: 'Fluxos', content: 'Estudante: salvar cadastro, enviar foto e comprovante, enviar solicitação, acompanhar a análise e corrigir quando solicitado. SEDUC: consultar fila, iniciar análise, conferir documentos, aprovar com validade, solicitar ajuste ou negar com motivo.' },
   { title: 'Mensagens e estados', content: 'A tela diferencia carregamento, ausência de solicitações, acesso não permitido, erro, rascunho, enviada, em análise, ajuste solicitado, aprovada e negada. Motivos de ajuste ou negativa ficam visíveis ao estudante.' },
 ];
@@ -44,9 +44,9 @@ function courseTypeLabel(value: TransportRequest['courseType']) {
 export function UniversityTransportPage({ context, onUnauthorized }: Props) {
   const canSelf = context.permissions.includes('TRANSPORT_REQUEST_READ');
   const canSelfWrite = context.permissions.includes('TRANSPORT_REQUEST_WRITE');
-  const canReview = context.permissions.some((permission) => permission === 'TRANSPORT_REVIEW_READ' || permission === 'TRANSPORT_REVIEW_WRITE');
-  const canReviewWrite = context.permissions.includes('TRANSPORT_REVIEW_WRITE');
-  const canArtWrite = context.permissions.includes('TRANSPORT_CARD_ART_WRITE');
+  const canReview = context.networkPermissions.some((permission) => permission === 'TRANSPORT_REVIEW_READ' || permission === 'TRANSPORT_REVIEW_WRITE');
+  const canReviewWrite = context.networkPermissions.includes('TRANSPORT_REVIEW_WRITE');
+  const canArtWrite = context.networkPermissions.includes('TRANSPORT_CARD_ART_WRITE');
   const initialTab: Tab = canSelf ? 'student' : 'review';
 
   const [tab, setTab] = useState<Tab>(initialTab);
@@ -172,7 +172,7 @@ export function UniversityTransportPage({ context, onUnauthorized }: Props) {
 
   const tabs = useMemo(() => {
     const result = [] as Array<{ value: Tab; label: string }>;
-    if (canSelf) result.push({ value: 'student', label: 'Minha solicitação' });
+    if (canSelf) result.push({ value: 'student', label: 'Minhas solicitações' });
     if (canReview) result.push({ value: 'review', label: 'Solicitações da SEDUC' });
     return result;
   }, [canSelf, canReview]);
@@ -181,7 +181,7 @@ export function UniversityTransportPage({ context, onUnauthorized }: Props) {
   if (denied) return <main className="app-page"><PageHeader eyebrow="Transporte" title="Transporte Universitário" description="Solicitações e carteirinhas do transporte intermunicipal." manualSections={manualSections} /><StateMessage title="Acesso não permitido" message="Sua conta perdeu a autorização necessária para esta operação." /></main>;
 
   return <main className="app-page transport-page">
-    <PageHeader eyebrow="Transporte" title="Transporte Universitário" description={tab === 'student' ? `Solicitação de ${context.displayName}.` : 'Análise de solicitações pela Secretaria de Educação.'} manualSections={manualSections} />
+    <PageHeader eyebrow="Transporte" title="Transporte Universitário" description={tab === 'student' ? `Solicitações de ${context.displayName}.` : 'Análise de solicitações pela Secretaria de Educação.'} manualSections={manualSections} />
     {tabs.length > 1 ? <SegmentedTabs label="Áreas do Transporte Universitário" tabs={tabs} value={tab} onChange={(value) => { setTab(value); setRequests([]); setSelectedId(undefined); setCard(undefined); setError(''); }} /> : null}
     {error ? <StateMessage kind="error" title="Não foi possível concluir a operação" message={error} /> : null}
     {loading ? <StateMessage title="Carregando transporte" message="Aguarde enquanto as informações são consultadas." /> : null}
@@ -202,7 +202,7 @@ export function UniversityTransportPage({ context, onUnauthorized }: Props) {
       {requests.length === 0 ? <StateMessage title="Nenhuma solicitação na fila" message="Não existem solicitações para o filtro selecionado." /> : <div className="transport-review-layout"><aside className="transport-request-list" aria-label="Solicitações de transporte">{requests.map((item) => <button className={selectedId === item.id ? 'transport-request-list__item transport-request-list__item--active' : 'transport-request-list__item'} type="button" key={item.id} onClick={() => { setSelectedId(item.id); setCard(undefined); }}><strong>{item.fullName}</strong><span>{item.courseName}</span><small>{statusLabels[item.status]}</small></button>)}</aside>{selected ? <section className="transport-panel transport-review-detail"><div className="transport-section-heading"><div><span className={`status-badge status-badge--${selected.status.toLowerCase()}`}>{statusLabels[selected.status]}</span><h2>{selected.fullName}</h2><p className="muted">{selected.courseName} · {selected.institutionName}</p></div></div><TransportRequestSummary request={selected} />
         <div className="transport-document-actions"><Button type="button" onClick={() => void downloadDocument('PHOTO')} disabled={!selected.hasPhoto}><Download aria-hidden="true" size={18} />Ver foto</Button><Button type="button" onClick={() => void downloadDocument('ENROLLMENT_PROOF')} disabled={!selected.hasEnrollmentProof}><Download aria-hidden="true" size={18} />Ver comprovante</Button></div>
         {canReviewWrite && selected.status === 'SUBMITTED' ? <div className="transport-actions"><Button type="button" variant="primary" onClick={() => void startReview()} disabled={saving}>Iniciar análise</Button></div> : null}
-        {canReviewWrite && (selected.status === 'SUBMITTED' || selected.status === 'UNDER_REVIEW') ? <div className="transport-actions"><Button type="button" variant="primary" onClick={() => setDecision('APPROVE')}><BadgeCheck aria-hidden="true" size={18} />Aprovar</Button><Button type="button" onClick={() => setDecision('ADJUST')}>Solicitar ajuste</Button><Button type="button" variant="danger" onClick={() => setDecision('DENY')}>Negar</Button></div> : null}
+        {canReviewWrite && selected.status === 'UNDER_REVIEW' ? <div className="transport-actions"><Button type="button" variant="primary" onClick={() => setDecision('APPROVE')}><BadgeCheck aria-hidden="true" size={18} />Aprovar</Button><Button type="button" onClick={() => setDecision('ADJUST')}>Solicitar ajuste</Button><Button type="button" variant="danger" onClick={() => setDecision('DENY')}>Negar</Button></div> : null}
         {selected.status === 'APPROVED' ? <Button type="button" onClick={async () => { try { setCard(await apiRequest<TransportCard>(`/transport/admin/requests/${selected.id}/card`)); } catch (exception) { handleException(exception, 'Não foi possível carregar a carteirinha.'); } }}>Visualizar carteirinha</Button> : null}
         <TransportHistory request={selected} /></section> : null}</div>}
       {card ? <TransportCardPanel card={card} /> : null}

@@ -1,6 +1,7 @@
-import { Activity, BookOpen, LogOut, School, ShieldCheck } from 'lucide-react';
+import { Activity, BookOpen, LogOut, ScanLine, School, ShieldCheck } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, apiRequest } from '../../shared/api/client';
+import { AccessControlPage } from '../access-control/AccessControlPage';
 import { UsersAccessPage } from '../admin/UsersAccessPage';
 import { Button } from '../button/Button';
 import { DiaryPage } from '../diario/DiaryPage';
@@ -10,7 +11,7 @@ import { StateMessage } from '../state/StateMessage';
 import type { AccessContext } from './types';
 
 type ApplicationWorkspaceProps = { onLogout: () => void; };
-type Module = 'secretaria' | 'diario' | 'monitoramento' | 'admin';
+type Module = 'secretaria' | 'diario' | 'monitoramento' | 'acesso' | 'admin';
 
 export function ApplicationWorkspace({ onLogout }: ApplicationWorkspaceProps) {
   const [context, setContext] = useState<AccessContext>();
@@ -26,9 +27,10 @@ export function ApplicationWorkspace({ onLogout }: ApplicationWorkspaceProps) {
       const canSecretaria = next.permissions.some((permission) => permission.startsWith('SCHOOL_'));
       const canDiary = next.permissions.some((permission) => permission.startsWith('DIARY_'));
       const canMonitoring = next.permissions.some((permission) => permission.startsWith('MONITORING_'));
+      const canAccessControl = next.permissions.some((permission) => permission.startsWith('ACCESS_'));
       const canAdmin = next.networkPermissions.some((permission) => ['USER_READ', 'ROLE_READ'].includes(permission));
-      const valid = (current?: Module) => current && ((current === 'secretaria' && canSecretaria) || (current === 'diario' && canDiary) || (current === 'monitoramento' && canMonitoring) || (current === 'admin' && canAdmin));
-      const preferred: Module | undefined = next.permissions.includes('DIARY_EDIT') ? 'diario' : canSecretaria ? 'secretaria' : canDiary ? 'diario' : canMonitoring ? 'monitoramento' : canAdmin ? 'admin' : undefined;
+      const valid = (current?: Module) => current && ((current === 'secretaria' && canSecretaria) || (current === 'diario' && canDiary) || (current === 'monitoramento' && canMonitoring) || (current === 'acesso' && canAccessControl) || (current === 'admin' && canAdmin));
+      const preferred: Module | undefined = next.permissions.includes('DIARY_EDIT') ? 'diario' : next.permissions.includes('ACCESS_CONTROL_WRITE') ? 'acesso' : canSecretaria ? 'secretaria' : canDiary ? 'diario' : canMonitoring ? 'monitoramento' : canAccessControl ? 'acesso' : canAdmin ? 'admin' : undefined;
       setModule((current) => valid(current) ? current : preferred);
     } catch (exception) {
       if (exception instanceof ApiError && exception.status === 401) { onLogout(); return; }
@@ -45,14 +47,16 @@ export function ApplicationWorkspace({ onLogout }: ApplicationWorkspaceProps) {
   const canSecretaria = context.permissions.some((permission) => permission.startsWith('SCHOOL_'));
   const canDiary = context.permissions.some((permission) => permission.startsWith('DIARY_'));
   const canMonitoring = context.permissions.some((permission) => permission.startsWith('MONITORING_'));
+  const canAccessControl = context.permissions.some((permission) => permission.startsWith('ACCESS_'));
   const canAdmin = context.networkPermissions.some((permission) => ['USER_READ', 'ROLE_READ'].includes(permission));
 
   return <><nav className="workspace-nav" aria-label="Módulos do KRINO"><div className="workspace-nav__modules">
     {canSecretaria ? <button className={module === 'secretaria' ? 'workspace-nav__item workspace-nav__item--active' : 'workspace-nav__item'} type="button" onClick={() => setModule('secretaria')}><School aria-hidden="true" size={18} />Secretaria Escolar</button> : null}
     {canDiary ? <button className={module === 'diario' ? 'workspace-nav__item workspace-nav__item--active' : 'workspace-nav__item'} type="button" onClick={() => setModule('diario')}><BookOpen aria-hidden="true" size={18} />Diário de Classe</button> : null}
     {canMonitoring ? <button className={module === 'monitoramento' ? 'workspace-nav__item workspace-nav__item--active' : 'workspace-nav__item'} type="button" onClick={() => setModule('monitoramento')}><Activity aria-hidden="true" size={18} />Monitoramento</button> : null}
+    {canAccessControl ? <button className={module === 'acesso' ? 'workspace-nav__item workspace-nav__item--active' : 'workspace-nav__item'} type="button" onClick={() => setModule('acesso')}><ScanLine aria-hidden="true" size={18} />Entrada e Saída</button> : null}
     {canAdmin ? <button className={module === 'admin' ? 'workspace-nav__item workspace-nav__item--active' : 'workspace-nav__item'} type="button" onClick={() => setModule('admin')}><ShieldCheck aria-hidden="true" size={18} />Administração</button> : null}
   </div>{module !== 'admin' ? <Button type="button" variant="ghost" onClick={onLogout}><LogOut aria-hidden="true" size={18} />Sair</Button> : null}</nav>
-    {module === 'secretaria' ? <SecretariaEscolarPage context={context} onUnauthorized={onLogout} /> : module === 'diario' ? <DiaryPage context={context} onUnauthorized={onLogout} /> : module === 'monitoramento' ? <MonitoringPage context={context} onUnauthorized={onLogout} /> : <UsersAccessPage onLogout={onLogout} />}
+    {module === 'secretaria' ? <SecretariaEscolarPage context={context} onUnauthorized={onLogout} /> : module === 'diario' ? <DiaryPage context={context} onUnauthorized={onLogout} /> : module === 'monitoramento' ? <MonitoringPage context={context} onUnauthorized={onLogout} /> : module === 'acesso' ? <AccessControlPage context={context} onUnauthorized={onLogout} /> : <UsersAccessPage onLogout={onLogout} />}
   </>;
 }

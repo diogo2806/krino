@@ -76,6 +76,28 @@ A matriz abaixo relaciona os grupos de requisitos do KRINO às fontes anexadas e
 | Auditoria | criação de referências IDEB/IDEPE, simulações e projeções registra `PEDAGOGICAL_INDICATOR_RECORDED` |
 | Frontend | `MonitoringPage`, `MetricCard`, `TrendLineChart`, `ProgressBarChart` e `IndicatorRecordDialog`; dashboard usa cards e gráficos, possui filtros até estudante/fonte, Manual da Tela no header e estilos em `frontend/src/shared/styles/monitoring.css` |
 
+## Implementação de RF-042 a RF-050
+
+| Requisito / grupo | Implementação |
+|---|---|
+| RF-042 Carteirinha | `student_access_credential`, `StudentAccessCredentialService#issueCard`, `PUT /api/access-control/students/{studentId}/card` e `StudentAccessCardDialog`; QR contém token opaco e não ID interno |
+| RF-043 Identificação | `POST /api/access-control/identify`, `QrScanner` para QR Code e matrícula como código manual; falha de câmera/leitura orienta fallback manual |
+| RF-044 Entrada | `POST /api/access-control/events` com `eventType=ENTRY`, validado no backend pelo escopo da unidade |
+| RF-045 Saída | `POST /api/access-control/events` com `eventType=EXIT`, mesma persistência/idempotência da entrada |
+| RF-046 Histórico | `GET /api/access-control/events` ordena por horário real de captura e respeita unidades autorizadas; frontend apresenta os últimos registros sincronizados |
+| RF-047 Notificação | `student_access_notification` cria uma notificação interna única vinculada ao evento, com estudante, responsável informado e horário original; o Portal do Responsável é o consumidor do registro |
+| RF-048 Dispositivos | `AccessControlPage` responsiva; câmera usa `getUserMedia`/`BarcodeDetector` quando suportados, com fallback manual em celular, tablet e computador |
+| RF-049 Offline | `offlineQueue.ts` mantém fila/cache local por usuário autenticado, UUID do evento, contexto capturado e dispositivo; reconexão dispara `/api/access-control/sync` automaticamente e existe ação manual `Sincronizar agora` |
+| RF-050 Adiar notificação | evento offline não cria notificação local; `StudentAccessNotificationService#issue` só executa depois que o backend recebe o evento durante sincronização |
+| Idempotência | `student_access_event.client_event_id` é `uuid unique`; reenvio retorna evento existente sem nova persistência, auditoria ou notificação |
+| Ordem/histórico | `captured_at` permanece o horário da captura; `received_at` registra o recebimento; fila local é ordenada por `capturedAt` |
+| Transferência entre captura/sync | evento carrega IDs canônicos identificados na captura; `validateCapturedIdentity` valida matrícula e movimentos na data original, evitando deslocar o histórico para turma posterior |
+| Sincronização parcial | `/sync` valida cada item individualmente; erro de um evento não impede eventos válidos do mesmo lote; falha de permissão continua bloqueando por segurança |
+| Privacidade local | fila/cache são separados por `username`; limpeza fica desabilitada com eventos pendentes; UUID/dispositivo não são exibidos ao operador |
+| Permissões | `ACCESS_CONTROL_READ`, `ACCESS_CONTROL_WRITE`, `ACCESS_CARD_MANAGE`; `AccessControlAccessService` valida Rede/unidade no backend; perfil-base `Operador de entrada e saída` possui leitura/registro |
+| Auditoria | novas entradas/saídas geram `STUDENT_ACCESS_EVENT_RECORDED`; reenvios idempotentes não duplicam auditoria; emissão inicial de QR gera `STUDENT_ACCESS_CARD_ISSUED` |
+| Frontend | `AccessControlPage`, `QrScanner`, `StudentAccessCardDialog`, componentes compartilhados e Manual da Tela no header; estilos em `frontend/src/shared/styles/access-control.css` via `index.css` |
+
 ## Implementação de RF-087 a RF-089
 
 | Requisito | Implementação |

@@ -63,6 +63,12 @@ Monitoramento Pedagógico
   - Evolução por período
   - IDEB/IDEPE observado, simulação e projeção
 Entrada e Saída
+  - Leitura QR
+  - Identificação manual
+  - Registro de entrada/saída
+  - Fila offline/sincronização
+  - Histórico
+  - Carteirinha QR
 Portal do Responsável
 Transporte Universitário
 Avaliações em Rede
@@ -109,10 +115,45 @@ A tela sempre informa o nível atual. Ao selecionar estudante, o backend valida 
 
 Os estilos ficam em `src/shared/styles/monitoring.css`, importado somente por `src/shared/styles/index.css`.
 
+## Entrada e Saída
+
+`src/components/access-control/AccessControlPage.tsx` coordena identificação, registro, fila offline, sincronização, histórico e emissão de carteirinha. A página utiliza:
+
+- `QrScanner`: leitura por câmera com `BarcodeDetector` quando suportado e orientação para código manual quando não houver suporte/permissão de câmera;
+- `StudentAccessCardDialog`: visualização e impressão da carteirinha QR;
+- `DataTable`: lista de eventos aguardando sincronização e histórico sincronizado;
+- `ConfirmDialog`: limpeza explícita do cache offline apenas quando a fila estiver vazia;
+- `PageHeader`: Manual da Tela no header e ações globais de sincronização/limpeza.
+
+Estados e microcopy:
+
+- `Online`: servidor disponível segundo o estado de conectividade do navegador;
+- `Offline`: capturas ficam armazenadas no dispositivo;
+- `Aguardando sincronização`: evento ainda não confirmado pelo backend;
+- `Sincronizado`: evento recebido pelo servidor;
+- falha de leitura de QR orienta reposicionamento da câmera ou uso da matrícula manual;
+- estudante e turma são exibidos antes dos botões `Registrar entrada` e `Registrar saída`;
+- identificadores técnicos como UUID do evento não são mostrados ao operador.
+
+Persistência offline:
+
+- cada evento recebe `crypto.randomUUID()` no momento da captura;
+- fila e cache são persistidos em `localStorage` e separados pelo `username` autenticado, evitando exposição direta entre contas no mesmo navegador;
+- o identificador do dispositivo é estável no navegador, mas não é exibido na interface;
+- a fila preserva estudante, escola, turma, horário e origem identificados na captura;
+- após resposta confirmada do backend, somente os UUIDs aceitos são removidos da fila;
+- evento rejeitado permanece pendente, com a mensagem de erro apresentada ao operador;
+- limpar dados offline remove somente fila/cache do usuário autenticado e fica desabilitado enquanto houver eventos pendentes;
+- a sincronização automática é acionada quando o navegador volta ao estado online, mantendo também o botão `Sincronizar agora`.
+
+A notificação ao responsável não é apresentada como SMS/e-mail. O backend disponibiliza uma notificação interna quando o evento chega ao servidor; o Portal do Responsável consome essa caixa respeitando o vínculo legal com o estudante.
+
+Os estilos ficam em `src/shared/styles/access-control.css`, importado exclusivamente por `src/shared/styles/index.css`. A impressão da carteirinha é escopada ao modal aberto para não interferir em outros documentos imprimíveis do KRINO.
+
 ## UX Writing
 
 - Usar linguagem educacional clara, evitando termos internos de banco/API.
-- Botões devem descrever a ação: `Salvar diário`, `Solicitar ajuste`, `Aprovar solicitação`, `Processar gabaritos`, `Exportar dados`.
+- Botões devem descrever a ação: `Salvar diário`, `Registrar entrada`, `Registrar saída`, `Sincronizar agora`, `Solicitar ajuste`, `Aprovar solicitação`, `Processar gabaritos`, `Exportar dados`.
 - Mensagens de erro devem informar o problema e a ação necessária.
 - Validações de calendário/horário no diário devem explicar por que o lançamento foi bloqueado.
 - Estado do transporte deve usar nomenclatura consistente em todas as telas.

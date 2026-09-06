@@ -26,3 +26,8 @@ management:
 
 krino:
   frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
+  security:
+    jwt-secret: ${JWT_SECRET}
+    jwt-expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
+    bootstrap-admin-username: ${BOOTSTRAP_ADMIN_USERNAME:}
+    bootstrap-admin-password: ${BOOTSTRAP_ADMIN_PASSWORD:}

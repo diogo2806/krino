@@ -1,3 +1,5 @@
+alter table diary_lesson add column period integer check (period between 1 and 4);
+
 create table family_conversation (
     id bigint generated always as identity primary key,
     student_id bigint not null references student(id),
@@ -36,7 +38,7 @@ create table family_announcement (
     active boolean not null default true,
     check ((audience_type = 'SCHOOL' and class_id is null and student_id is null)
         or (audience_type = 'CLASS' and class_id is not null and student_id is null)
-        or (audience_type = 'STUDENT' and student_id is not null))
+        or (audience_type = 'STUDENT' and class_id is null and student_id is not null))
 );
 
 create index ix_family_announcement_school on family_announcement(school_id, published_at desc);

@@ -32,10 +32,11 @@ create table student_access_notification (
     guardian_name varchar(180),
     channel varchar(30) not null default 'IN_APP',
     message varchar(500) not null,
-    delivered_at timestamp with time zone not null default current_timestamp
+    available_at timestamp with time zone not null default current_timestamp,
+    read_at timestamp with time zone
 );
 
-create index ix_student_access_notification_student on student_access_notification(student_id, delivered_at desc);
+create index ix_student_access_notification_student on student_access_notification(student_id, available_at desc);
 
 insert into access_permission (code, name, description) values
 ('ACCESS_CONTROL_READ', 'Consultar entrada e saída', 'Permite identificar estudantes e consultar o histórico de entrada e saída no escopo atribuído.'),

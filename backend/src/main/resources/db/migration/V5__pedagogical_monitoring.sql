@@ -2,8 +2,10 @@ create table pedagogical_indicator_record (
     id bigint generated always as identity primary key,
     indicator varchar(20) not null check (indicator in ('IDEB', 'IDEPE')),
     record_type varchar(30) not null check (record_type in ('OBSERVED_RESULT', 'SIMULATION', 'PROJECTION')),
-    scope_type varchar(20) not null check (scope_type in ('NETWORK', 'SCHOOL')),
+    scope_type varchar(20) not null check (scope_type in ('NETWORK', 'SCHOOL', 'CLASS', 'STUDENT')),
     school_id bigint references school_unit(id),
+    class_id bigint references school_class(id),
+    student_id bigint references student(id),
     academic_year integer not null,
     scenario_name varchar(180) not null,
     source_reference varchar(2000) not null,
@@ -12,11 +14,16 @@ create table pedagogical_indicator_record (
     classification varchar(40) not null check (classification in ('DOCUMENTED_REFERENCE', 'NON_OFFICIAL')),
     created_by varchar(120) not null,
     created_at timestamp with time zone not null default current_timestamp,
-    check ((scope_type = 'NETWORK' and school_id is null) or (scope_type = 'SCHOOL' and school_id is not null)),
+    check (
+        (scope_type = 'NETWORK' and school_id is null and class_id is null and student_id is null)
+        or (scope_type = 'SCHOOL' and school_id is not null and class_id is null and student_id is null)
+        or (scope_type = 'CLASS' and school_id is not null and class_id is not null and student_id is null)
+        or (scope_type = 'STUDENT' and school_id is not null and class_id is not null and student_id is not null)
+    ),
     check ((record_type = 'OBSERVED_RESULT' and classification = 'DOCUMENTED_REFERENCE') or (record_type in ('SIMULATION', 'PROJECTION') and classification = 'NON_OFFICIAL'))
 );
 
-create index ix_pedagogical_indicator_record_year on pedagogical_indicator_record(academic_year, scope_type, school_id, indicator, record_type);
+create index ix_pedagogical_indicator_record_year on pedagogical_indicator_record(academic_year, scope_type, school_id, class_id, student_id, indicator, record_type);
 
 insert into access_permission (code, name, description) values
 ('MONITORING_READ', 'Consultar Monitoramento Pedagógico', 'Permite consultar indicadores pedagógicos no escopo atribuído.'),

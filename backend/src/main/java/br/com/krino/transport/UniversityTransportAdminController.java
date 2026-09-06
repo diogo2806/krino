@@ -49,18 +49,21 @@ public class UniversityTransportAdminController {
     @PostMapping("/requests/{requestId}/request-adjustment")
     @PreAuthorize("@authorizationService.hasNetworkPermission(authentication, 'TRANSPORT_REVIEW_WRITE')")
     public UniversityTransportService.RequestView requestAdjustment(@PathVariable long requestId, @RequestBody UniversityTransportService.ReasonInput input, Authentication authentication) {
+        requireUnderReview(requestId, authentication);
         return service.requestAdjustment(requestId, input, authentication);
     }
 
     @PostMapping("/requests/{requestId}/deny")
     @PreAuthorize("@authorizationService.hasNetworkPermission(authentication, 'TRANSPORT_REVIEW_WRITE')")
     public UniversityTransportService.RequestView deny(@PathVariable long requestId, @RequestBody UniversityTransportService.ReasonInput input, Authentication authentication) {
+        requireUnderReview(requestId, authentication);
         return service.deny(requestId, input, authentication);
     }
 
     @PostMapping("/requests/{requestId}/approve")
     @PreAuthorize("@authorizationService.hasNetworkPermission(authentication, 'TRANSPORT_REVIEW_WRITE')")
     public UniversityTransportService.RequestView approve(@PathVariable long requestId, @RequestBody UniversityTransportService.ApprovalInput input, Authentication authentication) {
+        requireUnderReview(requestId, authentication);
         return service.approve(requestId, input, authentication);
     }
 
@@ -78,5 +81,11 @@ public class UniversityTransportAdminController {
     @PreAuthorize("@authorizationService.hasNetworkPermission(authentication, 'TRANSPORT_CARD_ART_WRITE')")
     public UniversityTransportService.CardArtView updateCardArt(@RequestBody UniversityTransportService.CardArtInput input, Authentication authentication) {
         return service.updateCardArt(input, authentication);
+    }
+
+    private void requireUnderReview(long requestId, Authentication authentication) {
+        if (!"UNDER_REVIEW".equals(service.reviewRequest(requestId, authentication).status())) {
+            throw new IllegalArgumentException("Inicie a análise antes de registrar uma decisão.");
+        }
     }
 }

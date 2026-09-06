@@ -67,6 +67,29 @@ Regras aplicadas no backend:
 - conteúdo curricular não é inventado nem pré-carregado: `curriculum_item` recebe somente referências validadas pela Administração;
 - operações relevantes geram auditoria sem armazenar senha/token.
 
+## Monitoramento Pedagógico
+
+Endpoints principais:
+
+- `GET /api/pedagogical-monitoring/context`: unidades autorizadas para o ano selecionado;
+- `GET /api/pedagogical-monitoring/classes`: turmas da unidade/ano;
+- `GET /api/pedagogical-monitoring/students`: estudantes matriculados na turma/ano;
+- `GET /api/pedagogical-monitoring/summary`: consolidação por Rede, Escola, Turma ou Estudante;
+- `GET /api/pedagogical-monitoring/trend`: evolução nos períodos 1 a 4;
+- `GET /api/pedagogical-monitoring/breakdown`: comparação Rede→Escolas, Escola→Turmas ou Turma→Estudantes;
+- `GET/POST /api/pedagogical-monitoring/indicator-records`: resultados documentados, simulações e projeções IDEB/IDEPE no escopo selecionado.
+
+O contrato `PedagogicalMetricProvider` desacopla as fontes de resultado. `DiaryPedagogicalMetricProvider` implementa a fonte interna do Diário de Classe. A Avaliação em Rede deve fornecer outro provedor e reutilizar as entidades centrais, sem duplicar escola, turma ou estudante.
+
+Fórmulas internas documentadas em `docs/requisitos/06-relatorios-e-indicadores.md`:
+
+- cobertura: `(estudantes_com_resultado / estudantes_no_escopo) * 100`;
+- aproveitamento observado: `(soma_das_notas / soma_das_pontuacoes_maximas_correspondentes) * 100`;
+- ambos usam duas casas decimais e arredondamento `HALF_UP`;
+- ausência de denominador válido retorna percentual indisponível, não zero artificial.
+
+O KRINO não calcula IDEB/IDEPE oficial nesta implementação porque a fórmula necessária não está confirmada nos documentos-fonte. `SIMULATION` e `PROJECTION` são obrigatoriamente `NON_OFFICIAL`; `OBSERVED_RESULT` exige origem documentada. Os registros podem ser vinculados a Rede, Escola, Turma ou Estudante e são auditados.
+
 ## Docker / EasyPanel
 
 O serviço `krino-backend` deve usar `backend/Dockerfile`. Não existe dependência de `docker-compose.yml`.

@@ -56,6 +56,12 @@ Diário de Classe
   - Planejamento
   - Currículo
 Monitoramento Pedagógico
+  - Rede
+  - Escola
+  - Turma
+  - Estudante
+  - Evolução por período
+  - IDEB/IDEPE observado, simulação e projeção
 Entrada e Saída
 Portal do Responsável
 Transporte Universitário
@@ -87,6 +93,21 @@ A página `src/components/diario/DiaryPage.tsx` coordena o módulo sem concentra
 A interface mostra de forma explícita quando o diário está disponível apenas para consulta. Bloqueios de calendário, horário, atribuição ou professor responsável usam a mensagem retornada pela API em linguagem orientativa. O conteúdo curricular não é preenchido com dados presumidos.
 
 Os estilos do módulo ficam em `src/shared/styles/diary.css`, importado exclusivamente por `src/shared/styles/index.css`.
+
+## Monitoramento Pedagógico
+
+`src/components/monitoring/MonitoringPage.tsx` mantém o dashboard focado em cards e gráficos. Os filtros no topo seguem a hierarquia Rede → Escola → Turma → Estudante e também permitem selecionar ano, período e fonte de resultados.
+
+Componentes reutilizáveis envolvidos:
+
+- `MetricCard`: indicador resumido;
+- `TrendLineChart`: evolução dos períodos 1 a 4;
+- `ProgressBarChart`: comparação entre escolas, turmas ou estudantes;
+- `IndicatorRecordDialog`: resultado observado, simulação ou projeção IDEB/IDEPE no escopo atual.
+
+A tela sempre informa o nível atual. Ao selecionar estudante, o backend valida a matrícula correspondente antes de consolidar ou registrar cenário. Simulações e projeções exibem identificação explícita de conteúdo não oficial. Resultados observados mantêm a origem documentada.
+
+Os estilos ficam em `src/shared/styles/monitoring.css`, importado somente por `src/shared/styles/index.css`.
 
 ## UX Writing
 

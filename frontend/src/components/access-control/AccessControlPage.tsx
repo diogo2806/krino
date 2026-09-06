@@ -19,9 +19,9 @@ type SourceType = 'QR' | 'MANUAL';
 const manualSections = [
   { title: 'Finalidade', content: 'Identificar estudantes e registrar entrada e saída na unidade escolar, inclusive durante indisponibilidade de internet, com sincronização posterior sem duplicar eventos.' },
   { title: 'Campos e leitura', content: 'Use Ler QR Code para utilizar a câmera do dispositivo ou informe a matrícula em Código manual. Após a identificação, confira estudante, turma e unidade antes de registrar a ação.' },
-  { title: 'Botões e ações', content: 'Registrar entrada e Registrar saída criam o evento. Sincronizar agora envia eventos pendentes. Emitir carteirinha disponibiliza o QR quando a permissão permitir. Limpar dados offline remove cache local somente quando não existem eventos pendentes.' },
-  { title: 'Operação offline', content: 'Cada captura recebe um identificador único persistido no dispositivo. Sem internet, o evento permanece como Aguardando sincronização e mantém o horário original. A identificação offline funciona para estudantes já reconhecidos neste dispositivo.' },
-  { title: 'Sincronização e notificações', content: 'Ao restabelecer a conexão, a fila é reenviada em ordem de captura. O backend reconhece reenvios do mesmo evento e não duplica entrada/saída. A notificação interna ao responsável é criada somente quando o servidor recebe o evento e apenas uma vez.' },
+  { title: 'Botões e ações', content: 'Registrar entrada e Registrar saída criam o evento. Sincronizar agora envia eventos pendentes. Emitir carteirinha disponibiliza o QR quando a permissão permitir. Limpar dados offline remove somente a fila/cache local do usuário autenticado e apenas quando não existem eventos pendentes.' },
+  { title: 'Operação offline', content: 'Cada captura recebe um identificador único persistido no dispositivo. Sem internet, o evento permanece como Aguardando sincronização e mantém o horário original. A identificação offline funciona para estudantes já reconhecidos por este usuário neste dispositivo.' },
+  { title: 'Sincronização e notificações', content: 'Ao restabelecer a conexão, a fila é reenviada em ordem de captura. O backend reconhece reenvios do mesmo evento e não duplica entrada/saída. A notificação interna ao responsável fica disponível somente quando o servidor recebe o evento e apenas uma vez.' },
   { title: 'Permissões', content: 'ACCESS_CONTROL_READ permite identificação e histórico; ACCESS_CONTROL_WRITE permite entrada, saída e sincronização; ACCESS_CARD_MANAGE permite emitir carteirinha. Todas respeitam o escopo da unidade escolar.' },
   { title: 'Fluxos', content: 'Leia ou informe o código, confira o estudante, registre Entrada/Saída e acompanhe o estado. Em modo Offline, continue as capturas conhecidas e sincronize quando o status voltar para Online.' },
   { title: 'Mensagens e estados', content: 'Online, Offline, Aguardando sincronização e Sincronizado são exibidos de forma explícita. Falha de leitura orienta nova tentativa ou código manual. Eventos rejeitados permanecem na fila até correção ou nova tentativa.' },
@@ -36,8 +36,9 @@ function eventLabel(value: 'ENTRY' | 'EXIT') {
 }
 
 export function AccessControlPage({ context, onUnauthorized }: Props) {
+  const storageOwner = context.username;
   const [online, setOnline] = useState(() => navigator.onLine);
-  const [pending, setPending] = useState<PendingAccessEvent[]>(() => getPendingEvents());
+  const [pending, setPending] = useState<PendingAccessEvent[]>(() => getPendingEvents(storageOwner));
   const [history, setHistory] = useState<AccessEvent[]>([]);
   const [identity, setIdentity] = useState<AccessIdentity>();
   const [identifiedCode, setIdentifiedCode] = useState('');
@@ -74,14 +75,14 @@ export function AccessControlPage({ context, onUnauthorized }: Props) {
 
   const syncPending = useCallback(async () => {
     if (!navigator.onLine) return;
-    const queue = getPendingEvents();
+    const queue = getPendingEvents(storageOwner);
     if (queue.length === 0) { setPending([]); return; }
     setSyncing(true); setError('');
     const requests: AccessEventRequest[] = queue.map((item) => ({ clientEventId: item.clientEventId, code: item.code, eventType: item.eventType, capturedAt: item.capturedAt, capturedOffline: true, sourceType: item.sourceType, deviceId: item.deviceId }));
     try {
       const results = await apiRequest<SyncResult[]>('/access-control/sync', { method: 'POST', body: JSON.stringify(requests) });
       const confirmed = results.filter((result) => result.synchronizedEvent).map((result) => result.clientEventId);
-      setPending(removePendingEvents(confirmed));
+      setPending(removePendingEvents(storageOwner, confirmed));
       const failures = results.filter((result) => !result.synchronizedEvent);
       setFeedback(confirmed.length > 0 ? `${confirmed.length} evento(s) sincronizado(s).` : 'Nenhum evento pendente foi sincronizado.');
       if (failures.length > 0) setError(`${failures.length} evento(s) permaneceram pendentes: ${failures[0]?.error ?? 'verifique os dados e tente novamente.'}`);
@@ -90,7 +91,7 @@ export function AccessControlPage({ context, onUnauthorized }: Props) {
       if (exception instanceof ApiError && exception.status === 401) { onUnauthorized(); return; }
       setError(exception instanceof Error ? exception.message : 'A sincronização não pôde ser concluída. Os eventos continuam armazenados neste dispositivo.');
     } finally { setSyncing(false); }
-  }, [loadHistory, onUnauthorized]);
+  }, [loadHistory, onUnauthorized, storageOwner]);
 
   useEffect(() => {
     const handleOnline = () => { setOnline(true); void syncPending(); };
@@ -106,19 +107,19 @@ export function AccessControlPage({ context, onUnauthorized }: Props) {
     if (!normalized) { setError('Leia o QR Code ou informe a matrícula do estudante.'); return; }
     setError(''); setFeedback('');
     if (!navigator.onLine) {
-      const cached = findCachedIdentity(normalized);
-      if (!cached) { setError('Este estudante ainda não foi reconhecido neste dispositivo. Conecte-se à internet para identificá-lo ou tente outro estudante já utilizado neste equipamento.'); return; }
+      const cached = findCachedIdentity(storageOwner, normalized);
+      if (!cached) { setError('Este estudante ainda não foi reconhecido por este usuário neste dispositivo. Conecte-se à internet para identificá-lo ou tente outro estudante já utilizado neste equipamento.'); return; }
       setIdentity(cached); setIdentifiedCode(normalized); setSourceType(source); setFeedback('Estudante identificado pelo cache local. O próximo registro ficará aguardando sincronização.');
       return;
     }
     try {
       const next = await apiRequest<AccessIdentity>('/access-control/identify', { method: 'POST', body: JSON.stringify({ code: normalized }) });
-      cacheIdentity(normalized, next); setIdentity(next); setIdentifiedCode(normalized); setSourceType(source); setFeedback('Estudante identificado. Confira os dados antes de registrar a ação.');
+      cacheIdentity(storageOwner, normalized, next); setIdentity(next); setIdentifiedCode(normalized); setSourceType(source); setFeedback('Estudante identificado. Confira os dados antes de registrar a ação.');
     } catch (exception) {
       if (exception instanceof ApiError && exception.status === 401) { onUnauthorized(); return; }
       setError(exception instanceof Error ? exception.message : 'Não foi possível identificar o estudante. Tente novamente ou use o código manual.');
     }
-  }, [onUnauthorized]);
+  }, [onUnauthorized, storageOwner]);
 
   async function identifyManual(event: FormEvent) {
     event.preventDefault();
@@ -131,7 +132,7 @@ export function AccessControlPage({ context, onUnauthorized }: Props) {
     const base: AccessEventRequest = { clientEventId: crypto.randomUUID(), code: identifiedCode, eventType, capturedAt: new Date().toISOString(), capturedOffline: !navigator.onLine, sourceType, deviceId: getDeviceId() };
     setError(''); setFeedback('');
     if (!navigator.onLine) {
-      setPending(enqueueEvent({ ...base, capturedOffline: true, identity }));
+      setPending(enqueueEvent(storageOwner, { ...base, capturedOffline: true, identity }));
       setFeedback(`${eventLabel(eventType)} registrada neste dispositivo. Aguardando sincronização.`);
       return;
     }
@@ -144,7 +145,7 @@ export function AccessControlPage({ context, onUnauthorized }: Props) {
         if (exception.status === 401) { onUnauthorized(); return; }
         setError(exception.message); return;
       }
-      setPending(enqueueEvent({ ...base, capturedOffline: true, identity }));
+      setPending(enqueueEvent(storageOwner, { ...base, capturedOffline: true, identity }));
       setOnline(false);
       setFeedback(`${eventLabel(eventType)} preservada neste dispositivo após perda de conexão. Aguardando sincronização.`);
     }
@@ -155,7 +156,7 @@ export function AccessControlPage({ context, onUnauthorized }: Props) {
     setError('');
     try {
       const next = await apiRequest<AccessCard>(`/access-control/students/${identity.studentId}/card`, { method: 'PUT' });
-      cacheIdentity(next.qrPayload, identity); setCard(next); setCardOpen(true);
+      cacheIdentity(storageOwner, next.qrPayload, identity); setCard(next); setCardOpen(true);
     } catch (exception) {
       if (exception instanceof ApiError && exception.status === 401) { onUnauthorized(); return; }
       setError(exception instanceof Error ? exception.message : 'Não foi possível emitir a carteirinha.');
@@ -173,18 +174,18 @@ export function AccessControlPage({ context, onUnauthorized }: Props) {
     { key: 'type', header: 'Registro', render: (row) => eventLabel(row.eventType) },
     { key: 'captured', header: 'Horário', render: (row) => formatDateTime(row.capturedAt) },
     { key: 'capture', header: 'Captura', render: (row) => row.capturedOffline ? 'Offline sincronizada' : 'Online' },
-    { key: 'notification', header: 'Notificação', render: (row) => row.notificationDelivered ? 'Emitida' : 'Não emitida' },
+    { key: 'notification', header: 'Notificação interna', render: (row) => row.notificationDelivered ? 'Disponível' : 'Não disponível' },
   ], []);
 
   if (denied) return <main className="app-page"><PageHeader eyebrow="Operação escolar" title="Entrada e Saída" description="Identificação e registro de acesso dos estudantes." manualSections={manualSections} /><StateMessage title="Acesso não permitido" message="Sua conta não possui permissão para o controle de entrada e saída." /></main>;
 
-  return <main className="app-page"><PageHeader eyebrow="Operação escolar" title="Entrada e Saída" description="Registre entradas e saídas com QR Code ou matrícula, mesmo durante indisponibilidade de internet." manualSections={manualSections} actions={<><Button type="button" onClick={() => void syncPending()} disabled={!online || pending.length === 0 || syncing}><RefreshCw aria-hidden="true" size={18} />{syncing ? 'Sincronizando...' : 'Sincronizar agora'}</Button><Button type="button" variant="ghost" disabled={pending.length > 0} title={pending.length > 0 ? 'Sincronize os eventos pendentes antes de limpar os dados locais.' : 'Limpar cache local deste dispositivo'} onClick={() => setClearOpen(true)}><Trash2 aria-hidden="true" size={18} />Limpar dados offline</Button></>} />
-    <section className="access-status"><div className={online ? 'access-status__state access-status__state--online' : 'access-status__state access-status__state--offline'}><span aria-hidden="true" /> <strong>{online ? 'Online' : 'Offline'}</strong></div><div><span>Pendentes de sincronização</span><strong>{pending.length}</strong></div></section>
+  return <main className="app-page"><PageHeader eyebrow="Operação escolar" title="Entrada e Saída" description="Registre entradas e saídas com QR Code ou matrícula, mesmo durante indisponibilidade de internet." manualSections={manualSections} actions={<><Button type="button" onClick={() => void syncPending()} disabled={!online || pending.length === 0 || syncing}><RefreshCw aria-hidden="true" size={18} />{syncing ? 'Sincronizando...' : 'Sincronizar agora'}</Button><Button type="button" variant="ghost" disabled={pending.length > 0} title={pending.length > 0 ? 'Sincronize os eventos pendentes antes de limpar os dados locais.' : 'Limpar cache local deste usuário neste dispositivo'} onClick={() => setClearOpen(true)}><Trash2 aria-hidden="true" size={18} />Limpar dados offline</Button></>} />
+    <section className="access-status"><div className={online ? 'access-status__state access-status__state--online' : 'access-status__state access-status__state--offline'}><span aria-hidden="true" /><strong>{online ? 'Online' : 'Offline'}</strong></div><div><span>Pendentes de sincronização</span><strong>{pending.length}</strong></div></section>
     {error ? <StateMessage kind="error" title="Não foi possível concluir a operação" message={error} /> : null}{feedback ? <StateMessage kind="success" title="Operação atualizada" message={feedback} /> : null}
     <section className="access-reader-grid"><QrScanner disabled={!online && pending.length >= 500} onDetected={(value) => void identifyCode(value, 'QR')} /><form className="access-manual" onSubmit={identifyManual}><TextField name="accessManualCode" label="Código manual" placeholder="Informe a matrícula" value={manualCode} onChange={(event) => setManualCode(event.target.value)} /><Button type="submit" variant="primary">Identificar estudante</Button><p className="field__hint">Use este campo quando a câmera não estiver disponível ou a leitura do QR Code falhar.</p></form></section>
     {identity ? <section className="access-identity-card"><div><span className="eyebrow">Estudante identificado</span><h2>{identity.studentName}</h2><p>Matrícula {identity.registration} · {identity.className}</p><p>{identity.schoolName}</p></div><div className="access-identity-card__actions">{canManageCard && online ? <Button type="button" onClick={() => void issueCard()}><CreditCard aria-hidden="true" size={18} />Emitir carteirinha</Button> : null}<Button type="button" variant="primary" disabled={!canWrite} onClick={() => void recordEvent('ENTRY')}>Registrar entrada</Button><Button type="button" variant="primary" disabled={!canWrite} onClick={() => void recordEvent('EXIT')}>Registrar saída</Button></div></section> : <StateMessage title="Nenhum estudante identificado" message="Leia um QR Code ou informe a matrícula para conferir os dados antes de registrar a ação." />}
-    <section className="access-section"><div className="access-section__heading"><h2>Eventos aguardando sincronização</h2><span>{pending.length}</span></div>{pending.length === 0 ? <StateMessage title="Fila offline vazia" message="Não existem registros aguardando envio neste dispositivo." /> : <DataTable rows={pending} columns={pendingColumns} rowKey={(row) => row.clientEventId} />}</section>
+    <section className="access-section"><div className="access-section__heading"><h2>Eventos aguardando sincronização</h2><span>{pending.length}</span></div>{pending.length === 0 ? <StateMessage title="Fila offline vazia" message="Não existem registros aguardando envio deste usuário neste dispositivo." /> : <DataTable rows={pending} columns={pendingColumns} rowKey={(row) => row.clientEventId} />}</section>
     <section className="access-section"><div className="access-section__heading"><h2>Últimos registros sincronizados</h2></div>{!online ? <StateMessage title="Histórico indisponível offline" message="Os registros já sincronizados voltam a ser consultáveis quando a conexão for restabelecida." /> : loading ? <StateMessage title="Carregando histórico" message="Consultando os registros mais recentes." /> : history.length === 0 ? <StateMessage title="Nenhum registro sincronizado" message="As entradas e saídas aparecerão aqui após o primeiro registro recebido pelo servidor." /> : <DataTable rows={history} columns={historyColumns} rowKey={(row) => row.clientEventId} />}</section>
-    <StudentAccessCardDialog card={card} open={cardOpen} onClose={() => setCardOpen(false)} /><ConfirmDialog open={clearOpen} title="Limpar dados offline deste dispositivo?" message="O cache de estudantes reconhecidos será removido. Esta ação só fica disponível quando não existem eventos aguardando sincronização." confirmLabel="Limpar dados locais" danger onClose={() => setClearOpen(false)} onConfirm={() => { clearOfflineData(); setPending([]); setIdentity(undefined); setIdentifiedCode(''); setClearOpen(false); setFeedback('Dados offline deste dispositivo foram removidos.'); }} />
+    <StudentAccessCardDialog card={card} open={cardOpen} onClose={() => setCardOpen(false)} /><ConfirmDialog open={clearOpen} title="Limpar dados offline deste usuário?" message="O cache de estudantes reconhecidos por este usuário será removido deste dispositivo. Esta ação só fica disponível quando não existem eventos aguardando sincronização." confirmLabel="Limpar dados locais" danger onClose={() => setClearOpen(false)} onConfirm={() => { clearOfflineData(storageOwner); setPending([]); setIdentity(undefined); setIdentifiedCode(''); setClearOpen(false); setFeedback('Dados offline deste usuário foram removidos deste dispositivo.'); }} />
   </main>;
 }

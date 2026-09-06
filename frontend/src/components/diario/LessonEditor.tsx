@@ -12,6 +12,7 @@ type Props = { diary: Diary; roster: RosterStudent[]; };
 export function LessonEditor({ diary, roster }: Props) {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [slot, setSlot] = useState('1');
+  const [period, setPeriod] = useState('1');
   const [content, setContent] = useState('');
   const [planningNotes, setPlanningNotes] = useState('');
   const [attendance, setAttendance] = useState<Record<number, string>>({});
@@ -27,6 +28,7 @@ export function LessonEditor({ diary, roster }: Props) {
     setMessage(''); setError('');
     void apiRequest<Lesson[]>(`/diaries/${diary.id}/lessons?from=${date}&to=${date}`).then((lessons) => {
       const lesson = lessons.find((item) => item.lessonSlot === Number(slot));
+      setPeriod(lesson?.period?.toString() ?? period);
       setContent(lesson?.content ?? ''); setPlanningNotes(lesson?.planningNotes ?? '');
       const next = { ...defaultAttendance };
       lesson?.attendance.forEach((item) => { next[item.enrollmentId] = item.status; });
@@ -37,14 +39,14 @@ export function LessonEditor({ diary, roster }: Props) {
   async function save() {
     setSaving(true); setError(''); setMessage('');
     try {
-      await apiRequest(`/diaries/${diary.id}/lessons/${date}/${slot}`, { method: 'PUT', body: JSON.stringify({ content, planningNotes, attendance: roster.map((student) => ({ enrollmentId: student.enrollmentId, status: attendance[student.enrollmentId] ?? 'PRESENT' })) }) });
-      setMessage('Diário salvo para a data e aula selecionadas.');
+      await apiRequest(`/diaries/${diary.id}/lessons/${date}/${slot}`, { method: 'PUT', body: JSON.stringify({ period: Number(period), content, planningNotes, attendance: roster.map((student) => ({ enrollmentId: student.enrollmentId, status: attendance[student.enrollmentId] ?? 'PRESENT' })) }) });
+      setMessage('Diário salvo para a data, aula e período selecionados.');
     } catch (exception) { setError(exception instanceof Error ? exception.message : 'Não foi possível salvar o diário.'); }
     finally { setSaving(false); }
   }
 
   return <section className="diary-section">
-    <div className="form-grid diary-lesson-meta"><TextField name="lessonDate" type="date" label="Data" min={diary.validFrom} max={diary.validUntil} value={date} onChange={(event) => setDate(event.target.value)} /><TextField name="lessonSlot" type="number" min={1} label="Aula nº" value={slot} onChange={(event) => setSlot(event.target.value)} /></div>
+    <div className="form-grid diary-lesson-meta"><TextField name="lessonDate" type="date" label="Data" min={diary.validFrom} max={diary.validUntil} value={date} onChange={(event) => setDate(event.target.value)} /><TextField name="lessonSlot" type="number" min={1} label="Aula nº" value={slot} onChange={(event) => setSlot(event.target.value)} /><SelectField name="lessonPeriod" label="Período letivo" disabled={!diary.editable} value={period} onChange={(event) => setPeriod(event.target.value)} options={[1,2,3,4].map((value) => ({ value: value.toString(), label: `${value}º período` }))} /></div>
     {!diary.editable ? <StateMessage title="Consulta do diário" message="Você pode consultar os lançamentos, mas somente o professor responsável ou um perfil administrativo autorizado pode editá-los." /> : null}
     {error ? <StateMessage kind="error" title="Lançamento bloqueado" message={error} /> : null}{message ? <StateMessage kind="success" title="Diário atualizado" message={message} /> : null}
     <div className="form-grid"><TextAreaField name="content" label="Conteúdo ministrado" placeholder="Descreva o conteúdo trabalhado nesta aula." disabled={!diary.editable} value={content} onChange={(event) => setContent(event.target.value)} /><TextAreaField name="planningNotes" label="Registro de planejamento da aula" placeholder="Registre orientações ou observações pedagógicas da aula." disabled={!diary.editable} value={planningNotes} onChange={(event) => setPlanningNotes(event.target.value)} /></div>

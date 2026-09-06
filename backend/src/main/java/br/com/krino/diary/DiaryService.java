@@ -3,7 +3,6 @@ package br.com.krino.diary;
 import java.time.LocalDate;
 import java.util.List;
 
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -59,9 +58,13 @@ public class DiaryService {
         ensureProfessional(request.responsibleProfessionalId());
         ensureComponent(request.componentId());
         ensureTeacherAssignment(request.classId(), request.componentId(), request.responsibleProfessionalId(), request.validFrom());
-        Integer overlap = jdbcTemplate.queryForObject(
-                "select count(*) from class_diary where class_id = ? and coalesce(component_id, 0) = coalesce(?, 0) and active = true and (valid_until is null or valid_until >= ?) and (? is null or valid_from <= ?)",
-                Integer.class, request.classId(), request.componentId(), request.validFrom(), request.validUntil(), request.validUntil());
+        Integer overlap = request.validUntil() == null
+                ? jdbcTemplate.queryForObject(
+                        "select count(*) from class_diary where class_id = ? and coalesce(component_id, 0) = coalesce(?, 0) and active = true and (valid_until is null or valid_until >= ?)",
+                        Integer.class, request.classId(), request.componentId(), request.validFrom())
+                : jdbcTemplate.queryForObject(
+                        "select count(*) from class_diary where class_id = ? and coalesce(component_id, 0) = coalesce(?, 0) and active = true and (valid_until is null or valid_until >= ?) and valid_from <= ?",
+                        Integer.class, request.classId(), request.componentId(), request.validFrom(), request.validUntil());
         if (overlap != null && overlap > 0) throw new IllegalArgumentException("Já existe Diário de Classe com vigência sobreposta para esta turma e componente.");
 
         Long id = jdbcTemplate.queryForObject(

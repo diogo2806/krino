@@ -53,6 +53,26 @@ A matriz abaixo relaciona os grupos de requisitos do KRINO às fontes anexadas e
 | Auditoria | criação de diário, aulas, avaliações/notas, planejamento, currículo e vínculo conta-profissional geram eventos em `security_audit_event` |
 | Frontend | `DiaryPage` e componentes de `frontend/src/components/diario`; Manual da Tela no header e estilos em `frontend/src/shared/styles/diary.css` com entrada única por `index.css` |
 
+## Implementação de RF-034 a RF-041
+
+| Requisito / grupo | Implementação |
+|---|---|
+| Consolidação de resultados internos | `PedagogicalMetricProvider` define o contrato de fontes; `DiaryPedagogicalMetricProvider` consolida avaliações/notas do Diário de Classe |
+| Visão municipal | `PedagogicalMonitoringService#summary` com escopo `NETWORK`; disponível apenas com permissão municipal `MONITORING_READ`/`MONITORING_MANAGE` |
+| Visão por unidade escolar | `PedagogicalMonitoringService#summary` com `schoolId`, respeitando o escopo de unidade |
+| Visão por turma | `PedagogicalMonitoringService#summary` com `classId`, validando ano letivo e escola da turma |
+| Filtro por período | períodos 1 a 4 aplicados à fonte interna sem remover estudantes da base de cobertura |
+| Evolução temporal | `PedagogicalMonitoringService#trend` calcula os mesmos indicadores para os quatro períodos comparáveis |
+| Comparação entre níveis | `breakdown`: Rede compara unidades; unidade escolar compara turmas |
+| Cobertura | `(estudantes_com_resultado / estudantes_no_escopo) * 100`, arredondamento `HALF_UP` em 2 casas; sem base retorna percentual indisponível |
+| Aproveitamento observado | `(soma_das_notas / soma_das_pontuacoes_maximas_correspondentes) * 100`, somente notas com pontuação máxima; `HALF_UP` em 2 casas; não representa IDEB/IDEPE |
+| IDEB/IDEPE | `pedagogical_indicator_record` diferencia resultado observado documentado, simulação não oficial e projeção não oficial; nenhuma fórmula oficial é inventada |
+| Integração futura da Avaliação em Rede | novos resultados devem implementar `PedagogicalMetricProvider`, preservando escolas, turmas e estudantes centrais e aparecendo no filtro Fonte de resultados |
+| Habilidades/descritores | frontend apresenta estado informativo até existir fonte avaliativa integrada com esses dados; não simula dados inexistentes |
+| Permissões | `MONITORING_READ` e `MONITORING_MANAGE` por Rede/unidade no backend e refletidas no frontend |
+| Auditoria | criação de referências IDEB/IDEPE, simulações e projeções registra `PEDAGOGICAL_INDICATOR_RECORDED` |
+| Frontend | `MonitoringPage`, `MetricCard`, `TrendLineChart`, `ProgressBarChart` e `IndicatorRecordDialog`; dashboard usa cards e gráficos, Manual da Tela no header e estilos em `frontend/src/shared/styles/monitoring.css` |
+
 ## Implementação de RF-087 a RF-089
 
 | Requisito | Implementação |

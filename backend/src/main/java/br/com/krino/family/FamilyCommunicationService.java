@@ -42,9 +42,11 @@ public class FamilyCommunicationService {
 
     public List<StudentOption> students(long schoolId, Long classId, Authentication authentication) {
         accessService.requireSchoolRead(schoolId, authentication);
-        String sql = "select distinct st.id, st.registration, st.name, c.id class_id, c.name class_name from student st "
-                + "join student_enrollment e on e.student_id = st.id and e.status = 'ACTIVE' join school_class c on c.id = e.class_id "
-                + "where c.school_id = ? and st.status = 'ACTIVE'" + (classId == null ? "" : " and c.id = ?") + " order by st.name";
+        String sql = "select st.id, st.registration, st.name, c.id class_id, c.name class_name from student st "
+                + "join lateral (select se.class_id from student_enrollment se where se.student_id = st.id and se.status = 'ACTIVE' "
+                + "order by se.academic_year desc, se.enrollment_date desc, se.id desc limit 1) e on true "
+                + "join school_class c on c.id = e.class_id where c.school_id = ? and st.status = 'ACTIVE'"
+                + (classId == null ? "" : " and c.id = ?") + " order by st.name";
         return classId == null
                 ? jdbcTemplate.query(sql, (rs, rowNum) -> studentOption(rs), schoolId)
                 : jdbcTemplate.query(sql, (rs, rowNum) -> studentOption(rs), schoolId, classId);
@@ -176,7 +178,7 @@ public class FamilyCommunicationService {
 
     private StudentSchool currentStudentSchool(long studentId) {
         List<StudentSchool> rows = jdbcTemplate.query(
-                "select e.class_id, c.school_id from student_enrollment e join school_class c on c.id = e.class_id where e.student_id = ? and e.status = 'ACTIVE' order by e.academic_year desc, e.enrollment_date desc limit 1",
+                "select e.class_id, c.school_id from student_enrollment e join school_class c on c.id = e.class_id where e.student_id = ? and e.status = 'ACTIVE' order by e.academic_year desc, e.enrollment_date desc, e.id desc limit 1",
                 (rs, rowNum) -> new StudentSchool(rs.getLong("class_id"), rs.getLong("school_id")), studentId);
         if (rows.isEmpty()) throw new IllegalArgumentException("O estudante não possui matrícula ativa.");
         return rows.getFirst();

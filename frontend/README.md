@@ -51,6 +51,10 @@ Secretaria Escolar
   - Horários
   - Documentos escolares
 Diário de Classe
+  - Frequência e conteúdo
+  - Notas e rendimento
+  - Planejamento
+  - Currículo
 Monitoramento Pedagógico
 Entrada e Saída
 Portal do Responsável
@@ -68,6 +72,21 @@ Administração
   - Auditoria
   - Suporte
 ```
+
+## Diário de Classe
+
+A página `src/components/diario/DiaryPage.tsx` coordena o módulo sem concentrar os fluxos internos. As responsabilidades são separadas em componentes de domínio:
+
+- `DiaryCreateDialog`: modalidade, componente, professor responsável e vigência;
+- `ProfessionalUserLinkDialog`: vínculo entre conta de login e profissional da educação;
+- `LessonEditor`: data/aula, conteúdo, observações e frequência;
+- `AssessmentPanel`: avaliações e notas;
+- `PlanningPanel`: planejamento por período e referências curriculares;
+- `CurriculumPanel`: consulta e, quando permitido, cadastro de referências curriculares validadas.
+
+A interface mostra de forma explícita quando o diário está disponível apenas para consulta. Bloqueios de calendário, horário, atribuição ou professor responsável usam a mensagem retornada pela API em linguagem orientativa. O conteúdo curricular não é preenchido com dados presumidos.
+
+Os estilos do módulo ficam em `src/shared/styles/diary.css`, importado exclusivamente por `src/shared/styles/index.css`.
 
 ## UX Writing
 

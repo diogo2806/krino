@@ -45,6 +45,28 @@ Saúde técnica: `GET /api/health`.
 
 O token contém somente identidade básica. As permissões são recarregadas do banco a cada requisição autenticada, de modo que alterações administrativas passam a valer sem emitir novo token. Autorizações de Rede, unidade escolar, estudante vinculado e diário atribuído permanecem validadas no backend.
 
+## Diário de Classe
+
+Endpoints principais:
+
+- `GET/POST /api/diaries`: consulta e criação de diários por turma;
+- `GET /api/diaries/{id}/roster`: estudantes com matrícula ativa na turma;
+- `GET/PUT /api/diaries/{id}/lessons`: consulta e gravação de conteúdo/frequência por data e aula;
+- `/api/diaries/{id}/assessments`: avaliações e notas;
+- `/api/diaries/{id}/planning`: planejamento pedagógico por período;
+- `/api/diaries/{id}/curriculum`: referências curriculares aplicáveis;
+- `/api/secretaria/professionals/{professionalId}/user-link`: vínculo entre cadastro profissional e conta utilizada no login.
+
+Regras aplicadas no backend:
+
+- `DIARY_READ`, `DIARY_EDIT`, `DIARY_ADMIN` e `CURRICULUM_MANAGE` respeitam escopo de Rede/unidade;
+- professor com `DIARY_EDIT` só edita diário em que é o responsável e sua conta está vinculada ao cadastro profissional;
+- aula/frequência exigem dia letivo em `school_calendar_day`;
+- o professor responsável deve possuir `teacher_assignment` vigente;
+- Anos Finais e EJA exigem componente curricular e horário vigente em `class_schedule` no dia da semana do lançamento;
+- conteúdo curricular não é inventado nem pré-carregado: `curriculum_item` recebe somente referências validadas pela Administração;
+- operações relevantes geram auditoria sem armazenar senha/token.
+
 ## Docker / EasyPanel
 
 O serviço `krino-backend` deve usar `backend/Dockerfile`. Não existe dependência de `docker-compose.yml`.

@@ -1,0 +1,22 @@
+.diary-workspace { display: grid; gap: 16px; margin-top: 20px; }
+.diary-context-card { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.diary-context-card > div { display: flex; align-items: center; gap: 12px; }
+.diary-context-card > div > div { display: grid; gap: 4px; }
+.diary-context-card span { color: var(--color-muted); }
+.diary-section { display: grid; gap: 16px; padding: 18px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-surface); }
+.diary-section__header { display: flex; justify-content: space-between; align-items: end; gap: 16px; }
+.diary-section__header > div:first-child { display: grid; gap: 4px; }
+.diary-section__header .field { min-width: 180px; }
+.diary-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.diary-assessment-list { display: flex; gap: 8px; flex-wrap: wrap; }
+.diary-assessment-card { display: grid; gap: 3px; min-width: 180px; padding: 10px 12px; text-align: left; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); cursor: pointer; }
+.diary-assessment-card span { color: var(--color-muted); font-size: .875rem; }
+.diary-assessment-card--active { border-color: var(--color-primary); background: var(--color-primary-soft); }
+.diary-grade-input { min-width: 90px; max-width: 130px; }
+.curriculum-list { display: grid; gap: 10px; }
+.curriculum-item { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.curriculum-item > div { display: flex; justify-content: space-between; gap: 12px; }
+.curriculum-item span { color: var(--color-muted); }
+.curriculum-item p { margin: 0; }
+.curriculum-form { margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--color-border); }
+@media (max-width: 760px) { .diary-context-card, .diary-section__header { align-items: stretch; flex-direction: column; } .diary-section__header .field { width: 100%; } }

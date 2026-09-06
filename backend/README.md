@@ -11,19 +11,39 @@ A tecnologia específica não era imposta pelos documentos da licitação; a fun
 | `DB_URL` | sim | JDBC URL do PostgreSQL |
 | `DB_USERNAME` | sim | usuário do banco |
 | `DB_PASSWORD` | sim | senha do banco |
+| `JWT_SECRET` | sim | segredo HMAC de no mínimo 32 bytes para assinatura dos tokens |
 | `FRONTEND_ORIGIN` | não | origem autorizada no CORS; padrão local `http://localhost:5173` |
+| `JWT_EXPIRATION_MINUTES` | não | validade do token; padrão `60` minutos |
+| `BOOTSTRAP_ADMIN_USERNAME` | não | usuário usado somente para criar o primeiro administrador quando a base está vazia |
+| `BOOTSTRAP_ADMIN_PASSWORD` | não | senha inicial do primeiro administrador; mínimo de 12 caracteres |
 | `DB_POOL_MAX` | não | limite do pool; padrão `10` |
 | `PORT` | não | porta HTTP; padrão `8080` |
 
-A ausência das variáveis obrigatórias de banco impede a inicialização da aplicação, evitando execução com configuração incompleta.
+A ausência das variáveis obrigatórias impede a inicialização da aplicação. O bootstrap administrativo só é executado quando não há nenhum usuário; depois disso, as variáveis de bootstrap não criam ou sobrescrevem contas.
 
 ## Execução local
 
 ```bash
-DB_URL=jdbc:postgresql://localhost:5432/krino DB_USERNAME=krino DB_PASSWORD=krino mvn spring-boot:run
+DB_URL=jdbc:postgresql://localhost:5432/krino \
+DB_USERNAME=krino \
+DB_PASSWORD=krino \
+JWT_SECRET=troque-por-um-segredo-local-com-32-bytes-ou-mais \
+BOOTSTRAP_ADMIN_USERNAME=admin \
+BOOTSTRAP_ADMIN_PASSWORD=senha-local-com-12-ou-mais \
+mvn spring-boot:run
 ```
 
 Saúde técnica: `GET /api/health`.
+
+## Identidade e acesso
+
+- `POST /api/auth/login`: autenticação com mensagem genérica para credenciais inválidas;
+- `GET /api/auth/me`: dados do usuário autenticado;
+- `GET /api/auth/access-context`: permissões efetivas no escopo municipal usadas para refletir ações no frontend;
+- `/api/admin/users`: gestão de usuários, senha e vínculos de perfil/escopo;
+- `/api/admin/roles` e `/api/admin/permissions`: gestão configurável de perfis e permissões.
+
+O token contém somente identidade básica. As permissões são recarregadas do banco a cada requisição autenticada, de modo que alterações administrativas passam a valer sem emitir novo token. Autorizações de Rede, unidade escolar, estudante vinculado e diário atribuído permanecem validadas no backend.
 
 ## Docker / EasyPanel
 

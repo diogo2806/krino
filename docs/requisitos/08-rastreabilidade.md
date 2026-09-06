@@ -14,6 +14,17 @@ A matriz abaixo relaciona os grupos de requisitos do KRINO às fontes anexadas e
 | Relatórios e dashboards | RF-091 a RF-094; REL-* | ETP 4.9/4.10; TR | itens 37-43 e 50 |
 | Segurança e administração | RF-087 a RF-090; RNF-* | ETP 3.8/7; TR 8 | itens 44-53 |
 
+## Implementação de RF-087 a RF-089
+
+| Requisito | Implementação |
+|---|---|
+| Autenticação | `POST /api/auth/login`, JWT assinado externamente, BCrypt e conta ativa |
+| Usuários | `/api/admin/users`, incluindo criação, alteração, desativação, senha e atribuições |
+| Perfis e permissões | `/api/admin/roles`, `/api/admin/permissions` e atribuições com escopos de Rede/unidade/usuário |
+| Escopo | `AuthorizationService` valida Rede, unidade, estudante vinculado e diário atribuído no backend |
+| Auditoria de identidade | `security_audit_event` registra mudanças sensíveis sem senha/token |
+| Reflexo no frontend | `GET /api/auth/access-context` informa permissões municipais para apresentação das ações autorizadas |
+
 ## Critérios de aceite transversais
 
 1. Fluxo demonstrável com dados fictícios.

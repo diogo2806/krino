@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../../shared/api/client';
 import { Button } from '../button/Button';
+import { ConfirmDialog } from '../dialog/ConfirmDialog';
 import { TextField } from '../form/TextField';
 import { Modal } from '../modal/Modal';
 import { StateMessage } from '../state/StateMessage';
@@ -10,7 +11,7 @@ type StudentOption = { id: number; registration: string; name: string; schoolNam
 type Props = { open: boolean; user?: User; onClose: () => void; };
 
 export function LinkedStudentsDialog({ open, user, onClose }: Props) {
-  const [linked, setLinked] = useState<StudentOption[]>([]); const [catalog, setCatalog] = useState<StudentOption[]>([]); const [search, setSearch] = useState(''); const [error, setError] = useState(''); const [loading, setLoading] = useState(false);
+  const [linked, setLinked] = useState<StudentOption[]>([]); const [catalog, setCatalog] = useState<StudentOption[]>([]); const [search, setSearch] = useState(''); const [error, setError] = useState(''); const [loading, setLoading] = useState(false); const [unlinking, setUnlinking] = useState<StudentOption>();
 
   async function load(term = search) {
     if (!user) return;
@@ -25,16 +26,17 @@ export function LinkedStudentsDialog({ open, user, onClose }: Props) {
     finally { setLoading(false); }
   }
 
-  useEffect(() => { if (open) { setSearch(''); void load(''); } }, [open, user?.id]);
+  useEffect(() => { if (open) { setSearch(''); setUnlinking(undefined); void load(''); } }, [open, user?.id]);
   const linkedIds = useMemo(() => new Set(linked.map((item) => item.id)), [linked]);
+  const available = useMemo(() => catalog.filter((item) => !linkedIds.has(item.id)), [catalog, linkedIds]);
 
   async function link(studentId: number) { if (!user) return; try { await apiRequest(`/admin/users/${user.id}/linked-students/${studentId}`, { method: 'POST' }); await load(); } catch (exception) { setError(exception instanceof Error ? exception.message : 'Não foi possível vincular o estudante.'); } }
-  async function unlink(studentId: number) { if (!user) return; try { await apiRequest(`/admin/users/${user.id}/linked-students/${studentId}`, { method: 'DELETE' }); await load(); } catch (exception) { setError(exception instanceof Error ? exception.message : 'Não foi possível remover o vínculo.'); } }
+  async function unlink() { if (!user || !unlinking) return; try { await apiRequest(`/admin/users/${user.id}/linked-students/${unlinking.id}`, { method: 'DELETE' }); setUnlinking(undefined); await load(); } catch (exception) { setUnlinking(undefined); setError(exception instanceof Error ? exception.message : 'Não foi possível remover o vínculo.'); } }
 
-  return <Modal open={open} title={`Vincular estudantes${user ? ` · ${user.displayName}` : ''}`} onClose={onClose} footer={<Button type="button" variant="ghost" onClick={onClose}>Fechar</Button>}><div className="form-stack">
+  return <><Modal open={open} title={`Vincular estudantes${user ? ` · ${user.displayName}` : ''}`} onClose={onClose} footer={<Button type="button" variant="ghost" onClick={onClose}>Fechar</Button>}><div className="form-stack">
     <form className="toolbar__filters" onSubmit={(event) => { event.preventDefault(); void load(); }}><TextField name="linkedStudentSearch" label="Buscar estudante" placeholder="Nome ou matrícula" value={search} onChange={(event) => setSearch(event.target.value)} /><Button type="submit">Buscar</Button></form>
     {error ? <StateMessage kind="error" title="Não foi possível concluir a operação" message={error} /> : null}
-    <section><h3>Estudantes vinculados</h3>{linked.length === 0 ? <p className="muted">Nenhum estudante vinculado a esta conta.</p> : <div className="family-link-list">{linked.map((item) => <div key={item.id}><span><strong>{item.name}</strong><small>{item.registration} · {item.className ?? 'Sem turma ativa'} · {item.schoolName ?? 'Sem unidade ativa'}</small></span><Button type="button" variant="ghost" onClick={() => void unlink(item.id)}>Remover vínculo</Button></div>)}</div>}</section>
-    <section><h3>Estudantes disponíveis</h3>{loading ? <p className="muted">Carregando...</p> : <div className="family-link-list">{catalog.filter((item) => !linkedIds.has(item.id)).map((item) => <div key={item.id}><span><strong>{item.name}</strong><small>{item.registration} · {item.className ?? 'Sem turma ativa'} · {item.schoolName ?? 'Sem unidade ativa'}</small></span><Button type="button" onClick={() => void link(item.id)}>Vincular</Button></div>)}</div>}</section>
-  </div></Modal>;
+    <section><h3>Estudantes vinculados</h3>{linked.length === 0 ? <p className="muted">Nenhum estudante vinculado a esta conta.</p> : <div className="family-link-list">{linked.map((item) => <div key={item.id}><span><strong>{item.name}</strong><small>{item.registration} · {item.className ?? 'Sem turma ativa'} · {item.schoolName ?? 'Sem unidade ativa'}</small></span><Button type="button" variant="ghost" onClick={() => setUnlinking(item)}>Remover vínculo</Button></div>)}</div>}</section>
+    <section><h3>Estudantes disponíveis</h3>{loading ? <p className="muted">Carregando...</p> : available.length === 0 ? <p className="muted">Nenhum estudante disponível para os filtros informados.</p> : <div className="family-link-list">{available.map((item) => <div key={item.id}><span><strong>{item.name}</strong><small>{item.registration} · {item.className ?? 'Sem turma ativa'} · {item.schoolName ?? 'Sem unidade ativa'}</small></span><Button type="button" onClick={() => void link(item.id)}>Vincular</Button></div>)}</div>}</section>
+  </div></Modal><ConfirmDialog open={Boolean(unlinking)} title="Remover vínculo do estudante" message={`Remover o vínculo de ${unlinking?.name ?? 'este estudante'} com ${user?.displayName ?? 'esta conta'}? O responsável deixará de consultar novas informações deste estudante, mas o histórico do sistema será preservado.`} confirmLabel="Remover vínculo" danger onConfirm={() => void unlink()} onClose={() => setUnlinking(undefined)} /></>;
 }

@@ -52,7 +52,7 @@ export function DiaryPage({ context, onUnauthorized }: Props) {
   const loadBase = useCallback(async () => {
     setLoading(true); setError(''); setDenied(false);
     try {
-      const [nextSchools, nextComponents] = await Promise.all([apiRequest<School[]>('/secretaria/schools'), apiRequest<Component[]>('/secretaria/components')]);
+      const [nextSchools, nextComponents] = await Promise.all([apiRequest<School[]>('/diaries/catalog/schools'), apiRequest<Component[]>('/diaries/catalog/components')]);
       setSchools(nextSchools); setComponents(nextComponents); setSchoolId((current) => current && nextSchools.some((item) => item.id.toString() === current) ? current : nextSchools[0]?.id.toString() ?? '');
     } catch (exception) { if (exception instanceof ApiError && exception.status === 401) { onUnauthorized(); return; } if (exception instanceof ApiError && exception.status === 403) { setDenied(true); return; } setError(exception instanceof Error ? exception.message : 'Não foi possível carregar o Diário de Classe.'); }
     finally { setLoading(false); }
@@ -61,10 +61,12 @@ export function DiaryPage({ context, onUnauthorized }: Props) {
   const loadSchool = useCallback(async () => {
     if (!schoolId) { setClasses([]); setProfessionals([]); setClassId(''); return; }
     try {
-      const [nextClasses, nextProfessionals] = await Promise.all([apiRequest<SchoolClass[]>(`/secretaria/classes?schoolId=${schoolId}&year=${year}`), apiRequest<Professional[]>(`/secretaria/professionals?schoolId=${schoolId}`)]);
+      const classesPromise = apiRequest<SchoolClass[]>(`/diaries/catalog/classes?schoolId=${schoolId}&year=${year}`);
+      const professionalsPromise = canAdmin ? apiRequest<Professional[]>(`/diaries/catalog/professionals?schoolId=${schoolId}`) : Promise.resolve<Professional[]>([]);
+      const [nextClasses, nextProfessionals] = await Promise.all([classesPromise, professionalsPromise]);
       setClasses(nextClasses); setProfessionals(nextProfessionals); setClassId((current) => current && nextClasses.some((item) => item.id.toString() === current) ? current : nextClasses[0]?.id.toString() ?? '');
-    } catch (exception) { if (exception instanceof ApiError && exception.status === 401) { onUnauthorized(); return; } setError(exception instanceof Error ? exception.message : 'Não foi possível carregar turmas e professores.'); }
-  }, [schoolId, year, onUnauthorized]);
+    } catch (exception) { if (exception instanceof ApiError && exception.status === 401) { onUnauthorized(); return; } if (exception instanceof ApiError && exception.status === 403) { setDenied(true); return; } setError(exception instanceof Error ? exception.message : 'Não foi possível carregar o contexto do Diário de Classe.'); }
+  }, [schoolId, year, canAdmin, onUnauthorized]);
 
   const loadDiaries = useCallback(async () => {
     if (!classId) { setDiaries([]); setSelectedDiaryId(undefined); return; }
@@ -96,6 +98,6 @@ export function DiaryPage({ context, onUnauthorized }: Props) {
     <FilterBar><SelectField name="diarySchool" label="Unidade escolar" value={schoolId} onChange={(event) => setSchoolId(event.target.value)} options={[{ value: '', label: 'Selecione' }, ...schools.map((item) => ({ value: item.id.toString(), label: item.name }))]} /><SelectField name="diaryYear" label="Ano letivo" value={year} onChange={(event) => setYear(event.target.value)} options={[currentYear - 1, currentYear, currentYear + 1].map((item) => ({ value: item.toString(), label: item.toString() }))} /><SelectField name="diaryClass" label="Turma" value={classId} onChange={(event) => setClassId(event.target.value)} options={[{ value: '', label: 'Selecione' }, ...classes.map((item) => ({ value: item.id.toString(), label: `${item.name} · ${item.stage}` }))]} /></FilterBar>
     {!classId ? <StateMessage title="Selecione uma turma" message="Escolha unidade escolar, ano letivo e turma para consultar os diários." /> : diaries.length === 0 ? <StateMessage title="Nenhum diário cadastrado" message={canAdmin ? 'Crie o primeiro Diário de Classe para esta turma.' : 'Ainda não existe Diário de Classe disponível para esta turma.'} /> : <DataTable rows={diaries} columns={columns} rowKey={(row) => row.id} />}
     {selectedDiary ? <section className="diary-workspace"><div className="diary-context-card"><div><BookOpen aria-hidden="true" size={22} /><div><strong>{selectedDiary.className} · {selectedDiary.componentName ?? 'Diário integrado'}</strong><span>{modeLabels[selectedDiary.mode] ?? selectedDiary.mode} · Professor: {selectedDiary.responsibleProfessionalName}</span></div></div><span className={selectedDiary.editable ? 'status-badge status-badge--active' : 'status-badge'}>{selectedDiary.editable ? 'Pode editar' : 'Somente consulta'}</span></div><SegmentedTabs label="Seções do Diário de Classe" tabs={diaryTabs} value={tab} onChange={setTab} />{tab === 'lesson' ? <LessonEditor diary={selectedDiary} roster={roster} /> : tab === 'assessment' ? <AssessmentPanel diary={selectedDiary} roster={roster} /> : tab === 'planning' ? <PlanningPanel diary={selectedDiary} curriculum={curriculum} /> : <CurriculumPanel diary={selectedDiary} items={curriculum} canManage={canManageCurriculum} onReload={loadDiaryData} />}</section> : null}
-    <DiaryCreateDialog open={createOpen} schoolClass={selectedClass} components={components} professionals={professionals.filter((item) => !item.schoolId || item.schoolId.toString() === schoolId)} onClose={() => setCreateOpen(false)} onSaved={loadDiaries} />
+    <DiaryCreateDialog open={createOpen} schoolClass={selectedClass} components={components} professionals={professionals} onClose={() => setCreateOpen(false)} onSaved={loadDiaries} />
   </main>;
 }

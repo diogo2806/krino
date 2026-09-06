@@ -44,14 +44,14 @@ public class StudentAccessCredentialService {
         String normalized = normalize(code);
         String token = normalized.startsWith(QR_PREFIX) ? normalized.substring(QR_PREFIX.length()) : normalized;
         List<StudentIdentity> rows = jdbcTemplate.query(
-                "select st.id student_id, st.registration, st.name student_name, c.id class_id, c.name class_name, c.school_id, s.name school_name "
+                "select st.id student_id, st.registration, st.name student_name, c.id class_id, c.name class_name, c.school_id, s.code school_code, s.name school_name "
                         + "from student st join student_enrollment e on e.student_id = st.id and e.status = 'ACTIVE' "
                         + "join school_class c on c.id = e.class_id join school_unit s on s.id = c.school_id "
                         + "left join student_access_credential cred on cred.student_id = st.id and cred.active = true "
                         + "where st.status = 'ACTIVE' and (cred.credential_token = ? or lower(st.registration) = lower(?)) "
                         + "order by e.academic_year desc, e.enrollment_date desc limit 1",
                 (rs, rowNum) -> new StudentIdentity(rs.getLong("student_id"), rs.getString("registration"), rs.getString("student_name"),
-                        rs.getLong("class_id"), rs.getString("class_name"), rs.getLong("school_id"), rs.getString("school_name")),
+                        rs.getLong("class_id"), rs.getString("class_name"), rs.getLong("school_id"), rs.getString("school_code"), rs.getString("school_name")),
                 token, normalized);
         if (rows.isEmpty()) throw new IllegalArgumentException("Não foi possível identificar o estudante. Tente novamente ou use a matrícula no campo de código manual.");
         return rows.getFirst();
@@ -80,12 +80,12 @@ public class StudentAccessCredentialService {
 
     private StudentIdentity currentIdentity(long studentId) {
         List<StudentIdentity> rows = jdbcTemplate.query(
-                "select st.id student_id, st.registration, st.name student_name, c.id class_id, c.name class_name, c.school_id, s.name school_name "
+                "select st.id student_id, st.registration, st.name student_name, c.id class_id, c.name class_name, c.school_id, s.code school_code, s.name school_name "
                         + "from student st join student_enrollment e on e.student_id = st.id and e.status = 'ACTIVE' "
                         + "join school_class c on c.id = e.class_id join school_unit s on s.id = c.school_id "
                         + "where st.id = ? and st.status = 'ACTIVE' order by e.academic_year desc, e.enrollment_date desc limit 1",
                 (rs, rowNum) -> new StudentIdentity(rs.getLong("student_id"), rs.getString("registration"), rs.getString("student_name"),
-                        rs.getLong("class_id"), rs.getString("class_name"), rs.getLong("school_id"), rs.getString("school_name")), studentId);
+                        rs.getLong("class_id"), rs.getString("class_name"), rs.getLong("school_id"), rs.getString("school_code"), rs.getString("school_name")), studentId);
         if (rows.isEmpty()) throw new IllegalArgumentException("O estudante precisa possuir matrícula ativa para emitir a carteirinha.");
         return rows.getFirst();
     }
@@ -115,6 +115,6 @@ public class StudentAccessCredentialService {
         return code.trim();
     }
 
-    public record StudentIdentity(Long studentId, String registration, String studentName, Long classId, String className, Long schoolId, String schoolName) {}
+    public record StudentIdentity(Long studentId, String registration, String studentName, Long classId, String className, Long schoolId, String schoolCode, String schoolName) {}
     public record CardView(Long studentId, String registration, String studentName, String className, String schoolName, String qrPayload, String qrSvg) {}
 }

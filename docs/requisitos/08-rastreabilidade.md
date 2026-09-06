@@ -14,6 +14,26 @@ A matriz abaixo relaciona os grupos de requisitos do KRINO às fontes anexadas e
 | Relatórios e dashboards | RF-091 a RF-094; REL-* | ETP 4.9/4.10; TR | itens 37-43 e 50 |
 | Segurança e administração | RF-087 a RF-090; RNF-* | ETP 3.8/7; TR 8 | itens 44-53 |
 
+## Implementação de RF-001 a RF-022
+
+| Requisito / grupo | Implementação |
+|---|---|
+| Unidades escolares | `school_unit`, `SecretariaRegistryService`, `/api/secretaria/schools` |
+| Estudantes e responsáveis | `student`, `/api/secretaria/students`, tela Secretaria Escolar / Estudantes |
+| Profissionais da educação | `education_professional`, `/api/secretaria/professionals`, tela Secretaria Escolar / Profissionais da educação |
+| Turmas | `school_class`, `/api/secretaria/classes`, tela Secretaria Escolar / Turmas |
+| Matrícula e rematrícula | `student_enrollment`, `/api/secretaria/enrollments`; rematrícula mantém referência à matrícula anterior quando disponível |
+| Transferência, troca de turma e falecimento | `student_movement`, `EnrollmentService#move`; troca de turma preserva a matrícula anterior e cria a nova matrícula vinculada |
+| Histórico de movimentações | `EnrollmentService#movements` e `MovementHistoryDialog` |
+| Professor por turma/componente/vigência | `teacher_assignment`, `AcademicStructureService`, `ClassAssignmentsDialog` |
+| Calendário escolar | `school_calendar_day`, `/api/secretaria/calendar`, tela Calendário escolar |
+| Horários de aula com vigência | `class_schedule`, `/api/secretaria/schedules`; valida conflitos da turma e do professor |
+| Documentos escolares | `SchoolDocumentService`, `/api/secretaria/documents/{type}`, `DocumentsPanel`; cobre os 13 tipos de emissão previstos em RF-009 a RF-021 |
+| Resultados acadêmicos persistidos | `student_term_result`, fonte reutilizável pelo Diário de Classe para notas, faltas e aulas por período |
+| Escopo e permissões | `SCHOOL_READ`, `SCHOOL_WRITE`, `SCHOOL_DOCUMENT_READ`; `SchoolAccessService` valida Rede/unidade no backend |
+| Auditoria | alterações de cadastro, matrícula, movimentação, atribuição, calendário e horários registram eventos em `security_audit_event` |
+| Frontend | `SecretariaEscolarPage` e componentes reutilizáveis em `frontend/src/components/secretaria`; Manual da Tela no header e estilos em `frontend/src/shared/styles` |
+
 ## Implementação de RF-087 a RF-089
 
 | Requisito | Implementação |
@@ -23,7 +43,7 @@ A matriz abaixo relaciona os grupos de requisitos do KRINO às fontes anexadas e
 | Perfis e permissões | `/api/admin/roles`, `/api/admin/permissions` e atribuições com escopos de Rede/unidade/usuário |
 | Escopo | `AuthorizationService` valida Rede, unidade, estudante vinculado e diário atribuído no backend |
 | Auditoria de identidade | `security_audit_event` registra mudanças sensíveis sem senha/token |
-| Reflexo no frontend | `GET /api/auth/access-context` informa permissões municipais para apresentação das ações autorizadas |
+| Reflexo no frontend | `GET /api/auth/access-context` informa permissões municipais e por unidade para apresentação das ações autorizadas |
 
 ## Critérios de aceite transversais
 

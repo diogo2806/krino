@@ -51,7 +51,7 @@ Endpoints principais:
 
 - `GET/POST /api/diaries`: consulta e criação de diários por turma;
 - `GET /api/diaries/{id}/roster`: estudantes com matrícula ativa na turma;
-- `GET/PUT /api/diaries/{id}/lessons`: consulta e gravação de conteúdo/frequência por data e aula;
+- `GET/PUT /api/diaries/{id}/lessons`: consulta e gravação de período letivo, conteúdo e frequência por data/aula;
 - `/api/diaries/{id}/assessments`: avaliações e notas;
 - `/api/diaries/{id}/planning`: planejamento pedagógico por período;
 - `/api/diaries/{id}/curriculum`: referências curriculares aplicáveis;
@@ -62,6 +62,8 @@ Regras aplicadas no backend:
 - `DIARY_READ`, `DIARY_EDIT`, `DIARY_ADMIN` e `CURRICULUM_MANAGE` respeitam escopo de Rede/unidade;
 - professor com `DIARY_EDIT` só edita diário em que é o responsável e sua conta está vinculada ao cadastro profissional;
 - aula/frequência exigem dia letivo em `school_calendar_day`;
+- novos lançamentos de aula exigem período letivo de 1 a 4, persistido em `diary_lesson.period` e reutilizado pelo Portal do Responsável para frequência por período;
+- aulas legadas anteriores à classificação podem permanecer com período nulo e não são artificialmente atribuídas a um bimestre;
 - o professor responsável deve possuir `teacher_assignment` vigente;
 - Anos Finais e EJA exigem componente curricular e horário vigente em `class_schedule` no dia da semana do lançamento;
 - conteúdo curricular não é inventado nem pré-carregado: `curriculum_item` recebe somente referências validadas pela Administração;
@@ -130,7 +132,8 @@ O domínio reutiliza os cadastros centrais e não duplica estudante, matrícula,
 Endpoints do responsável:
 
 - `GET /api/family-portal/students`: lista somente estudantes ligados à conta por `linked_resource_access`;
-- `GET /api/family-portal/students/{studentId}/report-card?year=&period=`: boletim, avaliações e frequência consolidada;
+- `GET /api/family-portal/students/{studentId}/report-card?year=&period=`: boletim e avaliações do período;
+- `GET /api/family-portal/students/{studentId}/attendance?year=&period=`: frequência por período, com fonte identificada;
 - `GET /api/family-portal/students/{studentId}/notifications`: notificações internas da Entrada e Saída;
 - `GET /api/family-portal/students/{studentId}/announcements`: comunicados aplicáveis à Escola/Turma/Estudante;
 - `GET /api/family-portal/students/{studentId}/conversations`: conversas do responsável para o estudante;
@@ -154,16 +157,20 @@ Comunicação da escola:
 - `/api/family-communication/announcements`: consulta e publicação;
 - `DELETE /api/family-communication/announcements/{id}`: desativa comunicado preservando histórico.
 
-`FAMILY_COMMUNICATION_READ` permite consulta; `FAMILY_COMMUNICATION_WRITE` permite iniciar/responder conversas e publicar/desativar comunicados na Rede/unidade autorizada. Uma nova conversa só aceita responsável ativo, ainda vinculado e com perfil atual contendo `STUDENT_LINKED_READ`.
+`FAMILY_COMMUNICATION_READ` permite consulta; `FAMILY_COMMUNICATION_WRITE` permite iniciar/responder conversas e publicar/desativar comunicados na Rede/unidade autorizada. Uma nova conversa e cada nova resposta da escola exigem responsável ativo, ainda vinculado e com perfil atual contendo `STUDENT_LINKED_READ`. O histórico continua consultável quando a autorização é removida, mas novas mensagens ficam bloqueadas.
 
 Boletim e frequência:
 
 - notas consolidadas vêm de `student_term_result`;
 - avaliações detalhadas vêm de `diary_assessment` e `diary_assessment_grade`;
-- frequência por período usa `classes_count` e `absences` consolidados, sem atribuir bimestre artificial às aulas do Diário que não possuem período explícito;
+- a frequência usa `diary_attendance` + `diary_lesson.period` como fonte principal;
+- `ABSENT` e `EXCUSED` são ausências para o percentual, pois ambas representam estudante não presente; o estado justificado continua preservado no Diário;
+- quando não existem aulas do Diário classificadas no período, `FamilyAttendanceService` usa `student_term_result.classes_count`/`absences` como fallback consolidado;
+- o retorno identifica a fonte como `DIARY`, `CONSOLIDATED_RESULT` ou `NONE`;
 - fórmula: `((aulas - faltas) / aulas) * 100`;
 - exemplo: 50 aulas, 2 faltas → 48 aulas frequentadas → `(48 / 50) * 100 = 96,00%`;
 - arredondamento `HALF_UP`, 2 casas decimais;
+- faltas superiores à quantidade de aulas não produzem percentual negativo; o mínimo é 0,00%;
 - sem aulas, o percentual é indisponível (`Sem base`), não zero artificial;
 - `FamilyAttendanceCalculatorTest` cobre cálculo, arredondamento, ausência de base e limite inferior de 0%.
 

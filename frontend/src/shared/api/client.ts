@@ -22,7 +22,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
   const apiUrl = (window.__KRINO_CONFIG__?.apiUrl ?? 'http://localhost:8080/api').replace(/\/$/, '');
   const token = getToken();
   const headers = new Headers(init.headers);
-  if (!headers.has('Content-Type') && init.body) {
+  if (!headers.has('Content-Type') && init.body && !(init.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
   if (token) {

@@ -10,17 +10,17 @@ type Props = { onDetected: (value: string) => void; disabled?: boolean; };
 
 export function QrScanner({ onDetected, disabled = false }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream>();
-  const intervalRef = useRef<number>();
+  const streamRef = useRef<MediaStream | null>(null);
+  const intervalRef = useRef<number | null>(null);
   const busyRef = useRef(false);
   const [active, setActive] = useState(false);
   const [error, setError] = useState('');
 
   const stop = useCallback(() => {
-    if (intervalRef.current) window.clearInterval(intervalRef.current);
-    intervalRef.current = undefined;
+    if (intervalRef.current !== null) window.clearInterval(intervalRef.current);
+    intervalRef.current = null;
     streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = undefined;
+    streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
     setActive(false);
   }, []);
@@ -42,7 +42,7 @@ export function QrScanner({ onDetected, disabled = false }: Props) {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
       streamRef.current = stream;
       const video = videoRef.current;
-      if (!video) return;
+      if (!video) { stop(); return; }
       video.srcObject = stream;
       await video.play();
       setActive(true);

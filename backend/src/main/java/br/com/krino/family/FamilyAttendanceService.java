@@ -51,9 +51,12 @@ public class FamilyAttendanceService {
 
     private List<AttendanceComponent> consolidatedAttendance(long studentId, int academicYear, int period) {
         return jdbcTemplate.query(
-                "select cc.name component_name, r.classes_count, r.absences from student_term_result r "
-                        + "join student_enrollment e on e.id = r.enrollment_id join curricular_component cc on cc.id = r.component_id "
-                        + "where e.student_id = ? and e.academic_year = ? and r.period = ? order by cc.name",
+                "select component_name, classes_count, absences from ("
+                        + "select distinct on (r.component_id) r.component_id, cc.name component_name, r.classes_count, r.absences, e.enrollment_date, e.id enrollment_id "
+                        + "from student_term_result r join student_enrollment e on e.id = r.enrollment_id join curricular_component cc on cc.id = r.component_id "
+                        + "where e.student_id = ? and e.academic_year = ? and r.period = ? "
+                        + "order by r.component_id, e.enrollment_date desc, e.id desc"
+                        + ") current_result order by component_name",
                 (rs, rowNum) -> component(rs.getString("component_name"), rs.getInt("classes_count"), rs.getInt("absences")),
                 studentId, academicYear, period);
     }

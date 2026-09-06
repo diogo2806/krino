@@ -58,6 +58,7 @@ public class DiaryAccessService {
     public void requireSchoolRead(long schoolId, Authentication authentication) {
         String schoolCode = schoolCode(schoolId);
         if (!(authorizationService.hasSchoolPermission(authentication, "DIARY_READ", schoolCode)
+                || authorizationService.hasSchoolPermission(authentication, "DIARY_EDIT", schoolCode)
                 || authorizationService.hasSchoolPermission(authentication, "DIARY_ADMIN", schoolCode))) {
             throw new AccessDeniedException("Sua conta não possui permissão para consultar os diários desta unidade escolar.");
         }
@@ -78,6 +79,22 @@ public class DiaryAccessService {
         }
     }
 
+    public List<Long> accessibleSchoolIds(Authentication authentication) {
+        if (authorizationService.hasNetworkPermission(authentication, "DIARY_READ")
+                || authorizationService.hasNetworkPermission(authentication, "DIARY_EDIT")
+                || authorizationService.hasNetworkPermission(authentication, "DIARY_ADMIN")) {
+            return jdbcTemplate.query("select id from school_unit where active = true order by name", (rs, rowNum) -> rs.getLong("id"));
+        }
+        Long userId = principalId(authentication);
+        return jdbcTemplate.query(
+                "select distinct s.id from school_unit s "
+                        + "join user_role_assignment ura on ura.scope_type = 'SCHOOL' and ura.scope_reference = s.code "
+                        + "join access_role_permission rp on rp.role_id = ura.role_id "
+                        + "join access_permission p on p.id = rp.permission_id "
+                        + "where ura.user_id = ? and p.code in ('DIARY_READ', 'DIARY_EDIT', 'DIARY_ADMIN') and s.active = true order by s.id",
+                (rs, rowNum) -> rs.getLong("id"), userId);
+    }
+
     public DiaryContext context(long diaryId) {
         List<DiaryContext> rows = jdbcTemplate.query(
                 "select d.id, d.class_id, c.school_id, s.code school_code, c.stage, d.component_id, d.responsible_professional_id, d.mode, d.valid_from, d.valid_until "
@@ -91,9 +108,16 @@ public class DiaryAccessService {
     }
 
     private Long linkedProfessionalId(Authentication authentication) {
-        if (!(authentication.getPrincipal() instanceof KrinoUserPrincipal principal)) return null;
-        List<Long> ids = jdbcTemplate.query("select professional_id from professional_user_account where user_id = ?", (rs, rowNum) -> rs.getLong(1), principal.id());
+        Long userId = principalId(authentication);
+        List<Long> ids = jdbcTemplate.query("select professional_id from professional_user_account where user_id = ?", (rs, rowNum) -> rs.getLong(1), userId);
         return ids.isEmpty() ? null : ids.getFirst();
+    }
+
+    private Long principalId(Authentication authentication) {
+        if (!(authentication.getPrincipal() instanceof KrinoUserPrincipal principal)) {
+            throw new AccessDeniedException("Usuário autenticado não identificado.");
+        }
+        return principal.id();
     }
 
     private String schoolCode(long schoolId) {

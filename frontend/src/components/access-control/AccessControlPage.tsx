@@ -81,7 +81,7 @@ export function AccessControlPage({ context, onUnauthorized }: Props) {
     const requests: AccessEventRequest[] = queue.map((item) => ({ clientEventId: item.clientEventId, code: item.code, eventType: item.eventType, capturedAt: item.capturedAt, capturedOffline: true, sourceType: item.sourceType, deviceId: item.deviceId }));
     try {
       const results = await apiRequest<SyncResult[]>('/access-control/sync', { method: 'POST', body: JSON.stringify(requests) });
-      const confirmed = results.filter((result) => result.synchronizedEvent).map((result) => result.clientEventId);
+      const confirmed = results.filter((result) => result.synchronizedEvent).map((result) => result.clientEventId).filter((id): id is string => Boolean(id));
       setPending(removePendingEvents(storageOwner, confirmed));
       const failures = results.filter((result) => !result.synchronizedEvent);
       setFeedback(confirmed.length > 0 ? `${confirmed.length} evento(s) sincronizado(s).` : 'Nenhum evento pendente foi sincronizado.');
@@ -174,7 +174,7 @@ export function AccessControlPage({ context, onUnauthorized }: Props) {
     { key: 'type', header: 'Registro', render: (row) => eventLabel(row.eventType) },
     { key: 'captured', header: 'Horário', render: (row) => formatDateTime(row.capturedAt) },
     { key: 'capture', header: 'Captura', render: (row) => row.capturedOffline ? 'Offline sincronizada' : 'Online' },
-    { key: 'notification', header: 'Notificação interna', render: (row) => row.notificationDelivered ? 'Disponível' : 'Não disponível' },
+    { key: 'notification', header: 'Notificação interna', render: (row) => row.notificationAvailable ? 'Disponível' : 'Não disponível' },
   ], []);
 
   if (denied) return <main className="app-page"><PageHeader eyebrow="Operação escolar" title="Entrada e Saída" description="Identificação e registro de acesso dos estudantes." manualSections={manualSections} /><StateMessage title="Acesso não permitido" message="Sua conta não possui permissão para o controle de entrada e saída." /></main>;

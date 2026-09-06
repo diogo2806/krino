@@ -123,6 +123,52 @@ Notificação:
 - o registro fica disponível para a caixa interna do responsável; o Portal do Responsável é responsável por exibi-lo somente ao usuário legalmente vinculado ao estudante;
 - o módulo não afirma envio por SMS/e-mail sem existir integração de canal externo.
 
+## Portal do Responsável e Comunicação com Famílias
+
+O domínio reutiliza os cadastros centrais e não duplica estudante, matrícula, notas, frequência ou eventos de acesso.
+
+Endpoints do responsável:
+
+- `GET /api/family-portal/students`: lista somente estudantes ligados à conta por `linked_resource_access`;
+- `GET /api/family-portal/students/{studentId}/report-card?year=&period=`: boletim, avaliações e frequência consolidada;
+- `GET /api/family-portal/students/{studentId}/notifications`: notificações internas da Entrada e Saída;
+- `GET /api/family-portal/students/{studentId}/announcements`: comunicados aplicáveis à Escola/Turma/Estudante;
+- `GET /api/family-portal/students/{studentId}/conversations`: conversas do responsável para o estudante;
+- `GET/POST /api/family-portal/conversations/...`: histórico e resposta;
+- `POST /api/family-portal/conversations`: inicia conversa com a escola da matrícula ativa.
+
+A autorização exige simultaneamente `STUDENT_LINKED_READ` e vínculo `STUDENT` + `READ/EDIT`. A verificação ocorre em toda leitura ou escrita. Remover perfil ou vínculo impede novas consultas sem apagar histórico.
+
+Administração do vínculo:
+
+- `/api/admin/users/{userId}/linked-students`: consulta, catálogo, vínculo e desvínculo;
+- exige `SCOPE_ASSIGN` municipal;
+- a conta alvo precisa estar ativa e possuir perfil atualmente atribuído com `STUDENT_LINKED_READ`;
+- vínculo e desvínculo geram auditoria.
+
+Comunicação da escola:
+
+- `/api/family-communication/schools`, `/classes`, `/students` e `/students/{studentId}/guardians`: catálogo do escopo autorizado;
+- `/api/family-communication/conversations`: lista e inicia conversas;
+- `/api/family-communication/conversations/{id}/messages`: consulta e resposta;
+- `/api/family-communication/announcements`: consulta e publicação;
+- `DELETE /api/family-communication/announcements/{id}`: desativa comunicado preservando histórico.
+
+`FAMILY_COMMUNICATION_READ` permite consulta; `FAMILY_COMMUNICATION_WRITE` permite iniciar/responder conversas e publicar/desativar comunicados na Rede/unidade autorizada. Uma nova conversa só aceita responsável ativo, ainda vinculado e com perfil atual contendo `STUDENT_LINKED_READ`.
+
+Boletim e frequência:
+
+- notas consolidadas vêm de `student_term_result`;
+- avaliações detalhadas vêm de `diary_assessment` e `diary_assessment_grade`;
+- frequência por período usa `classes_count` e `absences` consolidados, sem atribuir bimestre artificial às aulas do Diário que não possuem período explícito;
+- fórmula: `((aulas - faltas) / aulas) * 100`;
+- exemplo: 50 aulas, 2 faltas → 48 aulas frequentadas → `(48 / 50) * 100 = 96,00%`;
+- arredondamento `HALF_UP`, 2 casas decimais;
+- sem aulas, o percentual é indisponível (`Sem base`), não zero artificial;
+- `FamilyAttendanceCalculatorTest` cobre cálculo, arredondamento, ausência de base e limite inferior de 0%.
+
+Conversas, mensagens, publicação/desativação de comunicados e vínculos administrativos são auditados em `security_audit_event`.
+
 ## Docker / EasyPanel
 
 O serviço `krino-backend` deve usar `backend/Dockerfile`. Não existe dependência de `docker-compose.yml`.

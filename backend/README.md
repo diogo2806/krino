@@ -90,6 +90,39 @@ Fórmulas internas documentadas em `docs/requisitos/06-relatorios-e-indicadores.
 
 O KRINO não calcula IDEB/IDEPE oficial nesta implementação porque a fórmula necessária não está confirmada nos documentos-fonte. `SIMULATION` e `PROJECTION` são obrigatoriamente `NON_OFFICIAL`; `OBSERVED_RESULT` exige origem documentada. Os registros podem ser vinculados a Rede, Escola, Turma ou Estudante e são auditados.
 
+## Controle de Entrada e Saída
+
+Endpoints principais:
+
+- `POST /api/access-control/identify`: identifica estudante por QR Code ou matrícula manual;
+- `PUT /api/access-control/students/{studentId}/card`: emite/disponibiliza carteirinha com QR Code opaco;
+- `POST /api/access-control/events`: registra uma entrada ou saída;
+- `POST /api/access-control/sync`: sincroniza lote de eventos capturados offline, com validação independente por item e limite de 5.000 eventos por lote;
+- `GET /api/access-control/events`: consulta histórico por unidades autorizadas, com filtros opcionais de unidade e estudante.
+
+Persistência e regras:
+
+- `student_access_credential` contém token QR aleatório, sem expor ID interno no código visual;
+- `student_access_event.client_event_id` é UUID único gerado no dispositivo e constitui a chave idempotente do evento;
+- reenvio do mesmo UUID retorna o evento existente e não cria nova entrada/saída, nova auditoria ou nova notificação;
+- `captured_at` registra o horário original do dispositivo e `received_at` registra quando o servidor recebeu o evento;
+- eventos offline preservam `student_id`, `school_id` e `class_id` identificados no momento da captura;
+- ao sincronizar, o backend valida que o estudante possuía matrícula na turma/unidade naquela data e considera movimentações com data efetiva, evitando reatribuição retroativa após transferência;
+- `source_type` diferencia leitura `QR` e identificação `MANUAL`;
+- `captured_offline` diferencia captura offline de captura diretamente online;
+- `device_id` e `operator_username` preservam rastreabilidade sem serem exibidos como identificadores técnicos ao operador;
+- `ACCESS_CONTROL_READ`, `ACCESS_CONTROL_WRITE` e `ACCESS_CARD_MANAGE` são validadas por Rede/unidade no backend;
+- o perfil-base `Operador de entrada e saída` recebe leitura e registro, mas não gestão de carteirinha.
+
+Notificação:
+
+- `student_access_notification.event_id` é único, garantindo uma notificação interna por evento;
+- evento registrado online cria a notificação interna imediatamente após persistência;
+- evento capturado offline só cria a notificação quando for recebido pelo backend durante sincronização;
+- a notificação preserva o horário original da entrada/saída em sua mensagem;
+- o registro fica disponível para a caixa interna do responsável; o Portal do Responsável é responsável por exibi-lo somente ao usuário legalmente vinculado ao estudante;
+- o módulo não afirma envio por SMS/e-mail sem existir integração de canal externo.
+
 ## Docker / EasyPanel
 
 O serviço `krino-backend` deve usar `backend/Dockerfile`. Não existe dependência de `docker-compose.yml`.

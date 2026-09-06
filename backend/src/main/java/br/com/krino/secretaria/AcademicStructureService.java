@@ -2,7 +2,6 @@ package br.com.krino.secretaria;
 
 import java.sql.Date;
 import java.sql.PreparedStatement;
-import java.sql.Statement;
 import java.sql.Time;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -50,6 +49,13 @@ public class AcademicStructureService {
         var professional = registryService.getProfessional(request.professionalId());
         if (!professional.active()) throw new IllegalArgumentException("O profissional selecionado está inativo.");
         if (request.validUntil() != null && request.validUntil().isBefore(request.validFrom())) throw new IllegalArgumentException("A data final do vínculo não pode ser anterior à data inicial.");
+
+        String overlapSql = "select count(*) from teacher_assignment where professional_id = ? and class_id = ? and component_id = ? and (valid_until is null or valid_until >= ?)";
+        Integer overlap = request.validUntil() == null
+                ? jdbcTemplate.queryForObject(overlapSql, Integer.class, request.professionalId(), request.classId(), request.componentId(), Date.valueOf(request.validFrom()))
+                : jdbcTemplate.queryForObject(overlapSql + " and valid_from <= ?", Integer.class, request.professionalId(), request.classId(), request.componentId(), Date.valueOf(request.validFrom()), Date.valueOf(request.validUntil()));
+        if (overlap != null && overlap > 0) throw new IllegalArgumentException("Já existe atribuição deste profissional ao componente na turma com vigência sobreposta.");
+
         long id = insertReturningId("insert into teacher_assignment (professional_id, class_id, component_id, valid_from, valid_until) values (?, ?, ?, ?, ?)", request.professionalId(), request.classId(), request.componentId(), request.validFrom(), request.validUntil());
         auditService.record(authentication.getName(), "TEACHER_ASSIGNED", "TEACHER_ASSIGNMENT", Long.toString(id), professional.name() + " / " + classView.name());
         return getAssignment(id);
@@ -98,6 +104,24 @@ public class AcademicStructureService {
             Integer assignment = jdbcTemplate.queryForObject("select count(*) from teacher_assignment where professional_id = ? and class_id = ? and component_id = ? and valid_from <= ? and (valid_until is null or valid_until >= ?)", Integer.class, request.professionalId(), request.classId(), request.componentId(), Date.valueOf(request.validFrom()), Date.valueOf(request.validFrom()));
             if (assignment == null || assignment == 0) throw new IllegalArgumentException("O professor precisa estar atribuído à turma e ao componente no período informado.");
         }
+
+        String validityCondition = " and (valid_until is null or valid_until >= ?)" + (request.validUntil() == null ? "" : " and valid_from <= ?");
+        String conflictSql = "select count(*) from class_schedule where day_of_week = ? and start_time < ? and end_time > ?" + validityCondition + " and class_id = ?";
+        Object[] classArgs = request.validUntil() == null
+                ? new Object[]{request.dayOfWeek(), Time.valueOf(request.endTime()), Time.valueOf(request.startTime()), Date.valueOf(request.validFrom()), request.classId()}
+                : new Object[]{request.dayOfWeek(), Time.valueOf(request.endTime()), Time.valueOf(request.startTime()), Date.valueOf(request.validFrom()), Date.valueOf(request.validUntil()), request.classId()};
+        Integer classConflict = jdbcTemplate.queryForObject(conflictSql, Integer.class, classArgs);
+        if (classConflict != null && classConflict > 0) throw new IllegalArgumentException("Já existe horário da turma sobreposto no mesmo dia e período de vigência.");
+
+        if (request.professionalId() != null) {
+            String professionalSql = "select count(*) from class_schedule where professional_id = ? and day_of_week = ? and start_time < ? and end_time > ?" + validityCondition;
+            Object[] professionalArgs = request.validUntil() == null
+                    ? new Object[]{request.professionalId(), request.dayOfWeek(), Time.valueOf(request.endTime()), Time.valueOf(request.startTime()), Date.valueOf(request.validFrom())}
+                    : new Object[]{request.professionalId(), request.dayOfWeek(), Time.valueOf(request.endTime()), Time.valueOf(request.startTime()), Date.valueOf(request.validFrom()), Date.valueOf(request.validUntil())};
+            Integer professionalConflict = jdbcTemplate.queryForObject(professionalSql, Integer.class, professionalArgs);
+            if (professionalConflict != null && professionalConflict > 0) throw new IllegalArgumentException("O professor já possui outro horário sobreposto neste dia e período de vigência.");
+        }
+
         long id = insertReturningId("insert into class_schedule (class_id, component_id, professional_id, day_of_week, start_time, end_time, valid_from, valid_until) values (?, ?, ?, ?, ?, ?, ?, ?)", request.classId(), request.componentId(), request.professionalId(), request.dayOfWeek(), request.startTime(), request.endTime(), request.validFrom(), request.validUntil());
         auditService.record(authentication.getName(), "CLASS_SCHEDULE_CREATED", "CLASS_SCHEDULE", Long.toString(id), classView.name());
         return getSchedule(id);
@@ -130,14 +154,16 @@ public class AcademicStructureService {
     }
 
     private ScheduleView mapSchedule(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
-        long professionalId = rs.getLong("professional_id"); Date until = rs.getDate("valid_until");
-        return new ScheduleView(rs.getLong("id"), rs.getLong("class_id"), rs.getLong("component_id"), rs.getString("component_name"), rs.wasNull() ? null : professionalId, rs.getString("professional_name"), rs.getInt("day_of_week"), rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime(), rs.getDate("valid_from").toLocalDate(), until == null ? null : until.toLocalDate());
+        long professionalId = rs.getLong("professional_id");
+        boolean professionalIdWasNull = rs.wasNull();
+        Date until = rs.getDate("valid_until");
+        return new ScheduleView(rs.getLong("id"), rs.getLong("class_id"), rs.getLong("component_id"), rs.getString("component_name"), professionalIdWasNull ? null : professionalId, rs.getString("professional_name"), rs.getInt("day_of_week"), rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime(), rs.getDate("valid_from").toLocalDate(), until == null ? null : until.toLocalDate());
     }
 
     private long insertReturningId(String sql, Object... values) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
-            PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            PreparedStatement statement = connection.prepareStatement(sql, new String[]{"id"});
             for (int index = 0; index < values.length; index++) {
                 Object value = values[index];
                 if (value instanceof LocalDate localDate) statement.setDate(index + 1, Date.valueOf(localDate));

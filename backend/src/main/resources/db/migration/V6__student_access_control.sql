@@ -12,7 +12,7 @@ create table student_access_event (
     client_event_id uuid not null unique,
     student_id bigint not null references student(id),
     school_id bigint not null references school_unit(id),
-    class_id bigint references school_class(id),
+    class_id bigint not null references school_class(id),
     event_type varchar(20) not null check (event_type in ('ENTRY', 'EXIT')),
     captured_at timestamp with time zone not null,
     received_at timestamp with time zone not null default current_timestamp,

@@ -31,31 +31,38 @@ public class PedagogicalMonitoringController {
         return service.classes(schoolId, year, authentication);
     }
 
+    @GetMapping("/students")
+    public List<PedagogicalMonitoringService.StudentOption> students(@RequestParam long classId, @RequestParam int year, Authentication authentication) {
+        return service.students(classId, year, authentication);
+    }
+
     @GetMapping("/summary")
     public PedagogicalMonitoringService.MonitoringSummary summary(@RequestParam int year,
             @RequestParam(required = false) Integer period, @RequestParam(required = false) Long schoolId,
-            @RequestParam(required = false) Long classId, Authentication authentication) {
-        return service.summary(year, period, schoolId, classId, authentication);
+            @RequestParam(required = false) Long classId, @RequestParam(required = false) Long studentId,
+            Authentication authentication) {
+        return service.summary(year, period, schoolId, classId, studentId, authentication);
     }
 
     @GetMapping("/trend")
     public List<PedagogicalMonitoringService.TrendPoint> trend(@RequestParam int year,
             @RequestParam(required = false) Long schoolId, @RequestParam(required = false) Long classId,
-            Authentication authentication) {
-        return service.trend(year, schoolId, classId, authentication);
+            @RequestParam(required = false) Long studentId, Authentication authentication) {
+        return service.trend(year, schoolId, classId, studentId, authentication);
     }
 
     @GetMapping("/breakdown")
     public List<PedagogicalMonitoringService.BreakdownItem> breakdown(@RequestParam int year,
             @RequestParam(required = false) Integer period, @RequestParam(required = false) Long schoolId,
-            Authentication authentication) {
-        return service.breakdown(year, period, schoolId, authentication);
+            @RequestParam(required = false) Long classId, Authentication authentication) {
+        return service.breakdown(year, period, schoolId, classId, authentication);
     }
 
     @GetMapping("/indicator-records")
     public List<PedagogicalMonitoringService.IndicatorRecordView> indicatorRecords(@RequestParam int year,
-            @RequestParam(required = false) Long schoolId, Authentication authentication) {
-        return service.indicatorRecords(year, schoolId, authentication);
+            @RequestParam(required = false) Long schoolId, @RequestParam(required = false) Long classId,
+            @RequestParam(required = false) Long studentId, Authentication authentication) {
+        return service.indicatorRecords(year, schoolId, classId, studentId, authentication);
     }
 
     @PostMapping("/indicator-records")

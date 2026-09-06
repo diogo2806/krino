@@ -28,7 +28,7 @@ export function LessonEditor({ diary, roster }: Props) {
     setMessage(''); setError('');
     void apiRequest<Lesson[]>(`/diaries/${diary.id}/lessons?from=${date}&to=${date}`).then((lessons) => {
       const lesson = lessons.find((item) => item.lessonSlot === Number(slot));
-      setPeriod(lesson?.period?.toString() ?? period);
+      setPeriod(lesson?.period?.toString() ?? '1');
       setContent(lesson?.content ?? ''); setPlanningNotes(lesson?.planningNotes ?? '');
       const next = { ...defaultAttendance };
       lesson?.attendance.forEach((item) => { next[item.enrollmentId] = item.status; });

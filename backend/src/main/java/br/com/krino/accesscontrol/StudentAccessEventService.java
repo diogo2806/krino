@@ -37,9 +37,7 @@ public class StudentAccessEventService {
     @Transactional
     public EventView record(EventRequest request, Authentication authentication) {
         validateCapturedAt(request.capturedAt());
-        List<StoredEvent> existing = jdbcTemplate.query(
-                "select id, school_id from student_access_event where client_event_id = ?",
-                (rs, rowNum) -> new StoredEvent(rs.getLong("id"), rs.getLong("school_id")), request.clientEventId());
+        List<StoredEvent> existing = storedEvents(request.clientEventId());
         if (!existing.isEmpty()) {
             StoredEvent stored = existing.getFirst();
             accessService.requireWrite(stored.schoolId(), authentication);
@@ -56,8 +54,10 @@ public class StudentAccessEventService {
                 (rs, rowNum) -> rs.getLong("id"), request.clientEventId(), identity.studentId(), identity.schoolId(), identity.classId(), eventType,
                 request.capturedAt(), request.capturedOffline(), sourceType, normalizeDeviceId(request.deviceId()), authentication.getName());
         if (inserted.isEmpty()) {
-            Long id = jdbcTemplate.queryForObject("select id from student_access_event where client_event_id = ?", Long.class, request.clientEventId());
-            return eventView(id, true);
+            StoredEvent stored = storedEvents(request.clientEventId()).stream().findFirst()
+                    .orElseThrow(() -> new IllegalStateException("Não foi possível recuperar o evento idempotente já registrado."));
+            accessService.requireWrite(stored.schoolId(), authentication);
+            return eventView(stored.id(), true);
         }
 
         long eventId = inserted.getFirst();
@@ -99,6 +99,11 @@ public class StudentAccessEventService {
                 else ps.setObject(index++, param);
             }
         }, this::mapEventView);
+    }
+
+    private List<StoredEvent> storedEvents(UUID clientEventId) {
+        return jdbcTemplate.query("select id, school_id from student_access_event where client_event_id = ?",
+                (rs, rowNum) -> new StoredEvent(rs.getLong("id"), rs.getLong("school_id")), clientEventId);
     }
 
     private EventView eventView(long id, boolean duplicate) {

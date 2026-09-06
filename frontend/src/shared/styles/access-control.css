@@ -11,10 +11,10 @@
 .qr-scanner, .access-manual, .access-identity-card, .access-section { border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-surface); }
 .qr-scanner, .access-manual { padding: 18px; }
 .qr-scanner { display: grid; gap: 14px; }
-.qr-scanner__viewport { position: relative; min-height: 260px; overflow: hidden; border-radius: var(--radius-md); background: #111827; }
+.qr-scanner__viewport { position: relative; min-height: 260px; overflow: hidden; border-radius: var(--radius-md); background: var(--color-text); }
 .qr-scanner__video { display: block; width: 100%; height: 260px; object-fit: cover; }
 .qr-scanner__video--inactive { visibility: hidden; }
-.qr-scanner__guide { position: absolute; width: min(58%, 220px); aspect-ratio: 1; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 3px solid var(--color-surface); border-radius: var(--radius-md); box-shadow: 0 0 0 999px rgba(17, 24, 39, 0.28); pointer-events: none; }
+.qr-scanner__guide { position: absolute; width: min(58%, 220px); aspect-ratio: 1; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 3px solid var(--color-surface); border-radius: var(--radius-md); box-shadow: 0 0 0 999px color-mix(in srgb, var(--color-text) 28%, transparent); pointer-events: none; }
 .qr-scanner__actions { display: flex; justify-content: center; }
 .access-manual { display: grid; align-content: center; gap: 14px; }
 .access-manual .button { justify-self: start; }

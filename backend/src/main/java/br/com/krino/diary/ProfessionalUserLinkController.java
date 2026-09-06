@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,10 +15,8 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.transaction.annotation.Transactional;
 
 import br.com.krino.audit.SecurityAuditService;
-import br.com.krino.secretaria.SchoolAccessService;
 import br.com.krino.secretaria.SecretariaRegistryService;
 
 @RestController
@@ -26,21 +25,21 @@ public class ProfessionalUserLinkController {
 
     private final JdbcTemplate jdbcTemplate;
     private final SecretariaRegistryService registryService;
-    private final SchoolAccessService schoolAccessService;
+    private final DiaryAccessService diaryAccessService;
     private final SecurityAuditService auditService;
 
     public ProfessionalUserLinkController(JdbcTemplate jdbcTemplate, SecretariaRegistryService registryService,
-                                          SchoolAccessService schoolAccessService, SecurityAuditService auditService) {
+                                          DiaryAccessService diaryAccessService, SecurityAuditService auditService) {
         this.jdbcTemplate = jdbcTemplate;
         this.registryService = registryService;
-        this.schoolAccessService = schoolAccessService;
+        this.diaryAccessService = diaryAccessService;
         this.auditService = auditService;
     }
 
     @GetMapping
     public ResponseEntity<UserLinkView> get(@PathVariable long professionalId, Authentication authentication) {
         var professional = registryService.getProfessional(professionalId);
-        schoolAccessService.requireRead(authentication, professional.schoolId());
+        diaryAccessService.requireSchoolAdmin(professional.schoolId(), authentication);
         List<UserLinkView> links = jdbcTemplate.query(
                 "select u.id user_id, u.username, u.display_name from professional_user_account l join app_user u on u.id = l.user_id where l.professional_id = ?",
                 (rs, rowNum) -> new UserLinkView(rs.getLong("user_id"), rs.getString("username"), rs.getString("display_name")), professionalId);
@@ -51,7 +50,7 @@ public class ProfessionalUserLinkController {
     @Transactional
     public UserLinkView link(@PathVariable long professionalId, @Valid @RequestBody UserLinkRequest request, Authentication authentication) {
         var professional = registryService.getProfessional(professionalId);
-        schoolAccessService.requireWrite(authentication, professional.schoolId());
+        diaryAccessService.requireSchoolAdmin(professional.schoolId(), authentication);
         List<UserCore> users = jdbcTemplate.query("select id, username, display_name, active from app_user where lower(username) = lower(?)",
                 (rs, rowNum) -> new UserCore(rs.getLong("id"), rs.getString("username"), rs.getString("display_name"), rs.getBoolean("active")), request.username().trim());
         if (users.isEmpty()) throw new IllegalArgumentException("Usuário não encontrado. Informe o usuário utilizado no login.");
@@ -68,7 +67,7 @@ public class ProfessionalUserLinkController {
     @Transactional
     public void unlink(@PathVariable long professionalId, Authentication authentication) {
         var professional = registryService.getProfessional(professionalId);
-        schoolAccessService.requireWrite(authentication, professional.schoolId());
+        diaryAccessService.requireSchoolAdmin(professional.schoolId(), authentication);
         jdbcTemplate.update("delete from professional_user_account where professional_id = ?", professionalId);
         auditService.record(authentication.getName(), "PROFESSIONAL_USER_UNLINKED", "PROFESSIONAL", Long.toString(professionalId), "Conta removida do profissional da educação.");
     }

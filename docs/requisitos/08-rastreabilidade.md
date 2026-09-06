@@ -119,6 +119,28 @@ A matriz abaixo relaciona os grupos de requisitos do KRINO às fontes anexadas e
 | Teste de cálculo | `FamilyAttendanceCalculatorTest` cobre 96,00%, arredondamento 66,67%, ausência de base e proteção contra frequência negativa |
 | Frontend | `FamilyPortalPage`, `FamilyCommunicationPage`, dialogs de conversa/comunicado e `LinkedStudentsDialog`; todas as páginas novas usam Manual da Tela, componentes em `frontend/src/components` e estilos em `frontend/src/shared/styles/family.css` via `index.css` |
 
+## Implementação de RF-056 a RF-066
+
+| Requisito / grupo | Implementação |
+|---|---|
+| RF-056 Cadastro do interessado | `university_transport_request` vincula a solicitação à conta autenticada por `applicant_user_id`; registra dados pessoais, tipo de curso, curso e instituição sem confundir o solicitante com o cadastro escolar `student` |
+| RF-057 Comprovante de matrícula | `university_transport_document` com `document_type=ENROLLMENT_PROOF`; aceita PDF, JPEG ou PNG com limite de 5 MB e acesso autenticado |
+| RF-058 Foto | `university_transport_document` com `document_type=PHOTO`; aceita JPEG, PNG ou WEBP com limite de 5 MB; o frontend carrega a foto da carteirinha por `apiBlob`, mantendo o JWT no acesso |
+| RF-059 Dias necessários | colunas de segunda a domingo em `university_transport_request`; backend exige pelo menos um dia e valida o catálogo de dias |
+| RF-060 Submissão | `POST /api/transport/requests/{id}/submit`; exige propriedade da solicitação, estado editável, foto e comprovante antes de alterar para `SUBMITTED` |
+| RF-061 Aprovação | `POST /api/transport/admin/requests/{id}/approve`; exige permissão de análise, documentos completos e validade igual ou posterior à data da decisão |
+| RF-062 Negativa | `POST /api/transport/admin/requests/{id}/deny`; motivo é obrigatório e permanece visível no histórico e no acompanhamento do estudante |
+| RF-063 Ajustes | `POST /api/transport/admin/requests/{id}/request-adjustment`; motivo obrigatório; estudante volta a poder editar cadastro/documentos e reenviar |
+| RF-064 Acompanhamento | `UniversityTransportPage` exibe estado, motivo atual e `university_transport_history` com ator e data/hora de cada mudança |
+| RF-065 Carteirinha | `GET /api/transport/card`, `TransportCardPanel`; contém foto, nome, documento pessoal, curso, instituição, dias autorizados e validade; impressão usa a própria tela, e o estudante só recebe carteirinha aprovada, vigente e com arte aprovada |
+| RF-066 Arte | `university_transport_card_art`, `GET/PUT /api/transport/admin/card-art`; nome, título, rodapé e cor de destaque são parametrizáveis; `TRANSPORT_CARD_ART_WRITE` controla alteração/aprovação |
+| Estados | `DRAFT`, `SUBMITTED`, `UNDER_REVIEW`, `ADJUSTMENT_REQUESTED`, `APPROVED` e `DENIED`; cada transição relevante gera histórico e auditoria |
+| Propriedade e segurança | endpoints do estudante revalidam `applicant_user_id`; documentos não possuem URL pública e são entregues com autenticação e `Cache-Control: private, no-store` |
+| Permissões | `TRANSPORT_REQUEST_READ/WRITE`, `TRANSPORT_REVIEW_READ/WRITE` e `TRANSPORT_CARD_ART_WRITE`; perfil Estudante do transporte recebe somente fluxo próprio; SME/Técnico recebe análise e arte; Coordenação da SME recebe consulta |
+| Auditoria | criação/alteração, documentos, submissão, decisões e arte registram eventos `TRANSPORT_*` em `security_audit_event` sem copiar conteúdo binário |
+| Testes | `UniversityTransportServiceTest` cobre data futura, ausência/dia inválido e tipo de curso fora do escopo aceito |
+| Frontend | `UniversityTransportPage`, `TransportRequestForm`, `TransportDocumentUploader`, `TransportDecisionDialog` e `TransportCardPanel`; Manual da Tela no header; estilos exclusivos em `frontend/src/shared/styles/transport.css` importados somente por `index.css` |
+
 ## Implementação de RF-087 a RF-089
 
 | Requisito | Implementação |

@@ -1,4 +1,4 @@
-import { BookOpenCheck, Plus } from 'lucide-react';
+import { BookOpen, Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, apiRequest } from '../../shared/api/client';
 import { Button } from '../button/Button';
@@ -20,7 +20,7 @@ import type { CurriculumItem, Diary, RosterStudent } from './types';
 type Props = { context: AccessContext; onUnauthorized: () => void; };
 type DiaryTab = 'lesson' | 'assessment' | 'planning' | 'curriculum';
 
-const diaryTabs = [
+const diaryTabs: { value: DiaryTab; label: string }[] = [
   { value: 'lesson', label: 'Frequência e conteúdo' },
   { value: 'assessment', label: 'Notas e rendimento' },
   { value: 'planning', label: 'Planejamento' },
@@ -95,7 +95,7 @@ export function DiaryPage({ context, onUnauthorized }: Props) {
     {error ? <StateMessage kind="error" title="Não foi possível concluir a operação" message={error} /> : null}
     <FilterBar><SelectField name="diarySchool" label="Unidade escolar" value={schoolId} onChange={(event) => setSchoolId(event.target.value)} options={[{ value: '', label: 'Selecione' }, ...schools.map((item) => ({ value: item.id.toString(), label: item.name }))]} /><SelectField name="diaryYear" label="Ano letivo" value={year} onChange={(event) => setYear(event.target.value)} options={[currentYear - 1, currentYear, currentYear + 1].map((item) => ({ value: item.toString(), label: item.toString() }))} /><SelectField name="diaryClass" label="Turma" value={classId} onChange={(event) => setClassId(event.target.value)} options={[{ value: '', label: 'Selecione' }, ...classes.map((item) => ({ value: item.id.toString(), label: `${item.name} · ${item.stage}` }))]} /></FilterBar>
     {!classId ? <StateMessage title="Selecione uma turma" message="Escolha unidade escolar, ano letivo e turma para consultar os diários." /> : diaries.length === 0 ? <StateMessage title="Nenhum diário cadastrado" message={canAdmin ? 'Crie o primeiro Diário de Classe para esta turma.' : 'Ainda não existe Diário de Classe disponível para esta turma.'} /> : <DataTable rows={diaries} columns={columns} rowKey={(row) => row.id} />}
-    {selectedDiary ? <section className="diary-workspace"><div className="diary-context-card"><div><BookOpenCheck aria-hidden="true" size={22} /><div><strong>{selectedDiary.className} · {selectedDiary.componentName ?? 'Diário integrado'}</strong><span>{modeLabels[selectedDiary.mode] ?? selectedDiary.mode} · Professor: {selectedDiary.responsibleProfessionalName}</span></div></div><span className={selectedDiary.editable ? 'status-badge status-badge--active' : 'status-badge'}>{selectedDiary.editable ? 'Pode editar' : 'Somente consulta'}</span></div><SegmentedTabs value={tab} onChange={(value) => setTab(value as DiaryTab)} items={diaryTabs} />{tab === 'lesson' ? <LessonEditor diary={selectedDiary} roster={roster} /> : tab === 'assessment' ? <AssessmentPanel diary={selectedDiary} roster={roster} /> : tab === 'planning' ? <PlanningPanel diary={selectedDiary} curriculum={curriculum} /> : <CurriculumPanel diary={selectedDiary} items={curriculum} canManage={canManageCurriculum} onReload={loadDiaryData} />}</section> : null}
+    {selectedDiary ? <section className="diary-workspace"><div className="diary-context-card"><div><BookOpen aria-hidden="true" size={22} /><div><strong>{selectedDiary.className} · {selectedDiary.componentName ?? 'Diário integrado'}</strong><span>{modeLabels[selectedDiary.mode] ?? selectedDiary.mode} · Professor: {selectedDiary.responsibleProfessionalName}</span></div></div><span className={selectedDiary.editable ? 'status-badge status-badge--active' : 'status-badge'}>{selectedDiary.editable ? 'Pode editar' : 'Somente consulta'}</span></div><SegmentedTabs label="Seções do Diário de Classe" tabs={diaryTabs} value={tab} onChange={setTab} />{tab === 'lesson' ? <LessonEditor diary={selectedDiary} roster={roster} /> : tab === 'assessment' ? <AssessmentPanel diary={selectedDiary} roster={roster} /> : tab === 'planning' ? <PlanningPanel diary={selectedDiary} curriculum={curriculum} /> : <CurriculumPanel diary={selectedDiary} items={curriculum} canManage={canManageCurriculum} onReload={loadDiaryData} />}</section> : null}
     <DiaryCreateDialog open={createOpen} schoolClass={selectedClass} components={components} professionals={professionals.filter((item) => !item.schoolId || item.schoolId.toString() === schoolId)} onClose={() => setCreateOpen(false)} onSaved={loadDiaries} />
   </main>;
 }

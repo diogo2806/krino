@@ -3,6 +3,7 @@ package br.com.krino.transport;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/transport/admin")
+@PreAuthorize("@authorizationService.hasNetworkPermission(authentication, 'TRANSPORT_REVIEW_READ') or @authorizationService.hasNetworkPermission(authentication, 'TRANSPORT_REVIEW_WRITE')")
 public class UniversityTransportAdminController {
 
     private final UniversityTransportService service;
@@ -39,21 +41,25 @@ public class UniversityTransportAdminController {
     }
 
     @PostMapping("/requests/{requestId}/start-review")
+    @PreAuthorize("@authorizationService.hasNetworkPermission(authentication, 'TRANSPORT_REVIEW_WRITE')")
     public UniversityTransportService.RequestView startReview(@PathVariable long requestId, Authentication authentication) {
         return service.startReview(requestId, authentication);
     }
 
     @PostMapping("/requests/{requestId}/request-adjustment")
+    @PreAuthorize("@authorizationService.hasNetworkPermission(authentication, 'TRANSPORT_REVIEW_WRITE')")
     public UniversityTransportService.RequestView requestAdjustment(@PathVariable long requestId, @RequestBody UniversityTransportService.ReasonInput input, Authentication authentication) {
         return service.requestAdjustment(requestId, input, authentication);
     }
 
     @PostMapping("/requests/{requestId}/deny")
+    @PreAuthorize("@authorizationService.hasNetworkPermission(authentication, 'TRANSPORT_REVIEW_WRITE')")
     public UniversityTransportService.RequestView deny(@PathVariable long requestId, @RequestBody UniversityTransportService.ReasonInput input, Authentication authentication) {
         return service.deny(requestId, input, authentication);
     }
 
     @PostMapping("/requests/{requestId}/approve")
+    @PreAuthorize("@authorizationService.hasNetworkPermission(authentication, 'TRANSPORT_REVIEW_WRITE')")
     public UniversityTransportService.RequestView approve(@PathVariable long requestId, @RequestBody UniversityTransportService.ApprovalInput input, Authentication authentication) {
         return service.approve(requestId, input, authentication);
     }
@@ -69,6 +75,7 @@ public class UniversityTransportAdminController {
     }
 
     @PutMapping("/card-art")
+    @PreAuthorize("@authorizationService.hasNetworkPermission(authentication, 'TRANSPORT_CARD_ART_WRITE')")
     public UniversityTransportService.CardArtView updateCardArt(@RequestBody UniversityTransportService.CardArtInput input, Authentication authentication) {
         return service.updateCardArt(input, authentication);
     }

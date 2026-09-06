@@ -114,7 +114,7 @@ public class DiaryEvaluationService {
 
     @Transactional
     public CurriculumItemView addCurriculum(long diaryId, CurriculumItemRequest request, Authentication authentication) {
-        DiaryAccessService.DiaryContext context = accessService.requireRead(diaryId, authentication);
+        DiaryAccessService.DiaryContext context = accessService.context(diaryId);
         accessService.requireCurriculumManage(context.schoolId(), authentication);
         Long id = jdbcTemplate.queryForObject(
                 "insert into curriculum_item (source, stage, component_id, code, description) values (?, ?, ?, ?, ?) returning id",

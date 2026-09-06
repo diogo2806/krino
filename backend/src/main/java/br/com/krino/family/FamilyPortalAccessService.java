@@ -28,6 +28,12 @@ public class FamilyPortalAccessService {
         return principal.id();
     }
 
+    public void requirePortalPermission(Authentication authentication) {
+        if (!authorizationService.hasPermission(authentication, "STUDENT_LINKED_READ")) {
+            throw new AccessDeniedException("Sua conta não possui permissão para acessar o Portal do Responsável.");
+        }
+    }
+
     public void requireLinkedStudent(long studentId, Authentication authentication) {
         if (!authorizationService.canResponsibleAccessStudent(authentication, Long.toString(studentId))) {
             throw new AccessDeniedException("Sua conta não possui vínculo autorizado com este estudante.");

@@ -61,7 +61,7 @@ public class BootstrapAdminService implements ApplicationRunner {
         jdbcTemplate.update(connection -> {
             PreparedStatement statement = connection.prepareStatement(
                     "insert into app_user (username, display_name, password_hash, active) values (?, ?, ?, true)",
-                    Statement.RETURN_GENERATED_KEYS);
+                    new String[] { "id" });
             statement.setString(1, username.trim());
             statement.setString(2, "Administrador do sistema");
             statement.setString(3, passwordEncoder.encode(password));

@@ -49,6 +49,10 @@ public class DiaryPedagogicalMetricProvider implements PedagogicalMetricProvider
             sql.append(" and c.id = ?");
             parameters.add(filter.classId());
         }
+        if (filter.studentId() != null) {
+            sql.append(" and e.student_id = ?");
+            parameters.add(filter.studentId());
+        }
 
         Aggregate aggregate = jdbcTemplate.queryForObject(sql.toString(), (rs, rowNum) -> new Aggregate(
                 rs.getLong("total_students"), rs.getLong("students_with_results"), rs.getLong("assessments_with_results"),

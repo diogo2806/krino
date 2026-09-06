@@ -48,3 +48,8 @@ export function findCachedIdentity(code: string) {
   const cache = safeParse<IdentityCache>(localStorage.getItem(IDENTITY_CACHE_KEY), {});
   return cache[code.trim()];
 }
+
+export function clearOfflineData() {
+  localStorage.removeItem(QUEUE_KEY);
+  localStorage.removeItem(IDENTITY_CACHE_KEY);
+}

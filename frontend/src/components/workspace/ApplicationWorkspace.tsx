@@ -16,6 +16,11 @@ import type { AccessContext } from './types';
 type ApplicationWorkspaceProps = { onLogout: () => void; };
 type Module = 'secretaria' | 'diario' | 'monitoramento' | 'acesso' | 'familias' | 'portal-responsavel' | 'transporte' | 'admin';
 
+function hasTransportAccess(context: AccessContext) {
+  return context.permissions.some((permission) => permission.startsWith('TRANSPORT_REQUEST_'))
+    || context.networkPermissions.some((permission) => permission.startsWith('TRANSPORT_REVIEW_') || permission === 'TRANSPORT_CARD_ART_WRITE');
+}
+
 export function ApplicationWorkspace({ onLogout }: ApplicationWorkspaceProps) {
   const [context, setContext] = useState<AccessContext>();
   const [module, setModule] = useState<Module>();
@@ -33,7 +38,7 @@ export function ApplicationWorkspace({ onLogout }: ApplicationWorkspaceProps) {
       const canAccessControl = next.permissions.some((permission) => permission.startsWith('ACCESS_'));
       const canFamilyCommunication = next.permissions.some((permission) => permission.startsWith('FAMILY_COMMUNICATION_'));
       const canFamilyPortal = next.permissions.includes('STUDENT_LINKED_READ');
-      const canTransport = next.permissions.some((permission) => permission.startsWith('TRANSPORT_'));
+      const canTransport = hasTransportAccess(next);
       const canAdmin = next.networkPermissions.some((permission) => ['USER_READ', 'ROLE_READ'].includes(permission));
       const valid = (current?: Module) => current && ((current === 'secretaria' && canSecretaria) || (current === 'diario' && canDiary) || (current === 'monitoramento' && canMonitoring) || (current === 'acesso' && canAccessControl) || (current === 'familias' && canFamilyCommunication) || (current === 'portal-responsavel' && canFamilyPortal) || (current === 'transporte' && canTransport) || (current === 'admin' && canAdmin));
       const preferred: Module | undefined = canFamilyPortal ? 'portal-responsavel' : next.permissions.includes('TRANSPORT_REQUEST_READ') ? 'transporte' : next.permissions.includes('DIARY_EDIT') ? 'diario' : next.permissions.includes('ACCESS_CONTROL_WRITE') ? 'acesso' : canSecretaria ? 'secretaria' : canDiary ? 'diario' : canMonitoring ? 'monitoramento' : canAccessControl ? 'acesso' : canFamilyCommunication ? 'familias' : canTransport ? 'transporte' : canAdmin ? 'admin' : undefined;
@@ -56,7 +61,7 @@ export function ApplicationWorkspace({ onLogout }: ApplicationWorkspaceProps) {
   const canAccessControl = context.permissions.some((permission) => permission.startsWith('ACCESS_'));
   const canFamilyCommunication = context.permissions.some((permission) => permission.startsWith('FAMILY_COMMUNICATION_'));
   const canFamilyPortal = context.permissions.includes('STUDENT_LINKED_READ');
-  const canTransport = context.permissions.some((permission) => permission.startsWith('TRANSPORT_'));
+  const canTransport = hasTransportAccess(context);
   const canAdmin = context.networkPermissions.some((permission) => ['USER_READ', 'ROLE_READ'].includes(permission));
 
   return <><nav className="workspace-nav" aria-label="Módulos do KRINO"><div className="workspace-nav__modules">

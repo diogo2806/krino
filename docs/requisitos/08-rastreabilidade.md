@@ -28,7 +28,7 @@ A matriz abaixo relaciona os grupos de requisitos do KRINO às fontes anexadas e
 | Professor por turma/componente/vigência | `teacher_assignment`, `AcademicStructureService`, `ClassAssignmentsDialog` |
 | Calendário escolar | `school_calendar_day`, `/api/secretaria/calendar`, tela Calendário escolar |
 | Horários de aula com vigência | `class_schedule`, `/api/secretaria/schedules`; valida conflitos da turma e do professor |
-| Documentos escolares | `SchoolDocumentService`, `/api/secretaria/documents/{type}`, `DocumentsPanel`; cobre os 13 tipos de emissão previstos em RF-009 a RF-021 |
+| Documentos escolares | `SchoolDocumentService`, `/api/secretaria/documents/{type}`, `DocumentsPanel`; cobre os 13 tipos de emissão previstos em RF-010 a RF-022 |
 | Resultados acadêmicos persistidos | `student_term_result`, fonte reutilizável pelo Diário de Classe para notas, faltas e aulas por período |
 | Escopo e permissões | `SCHOOL_READ`, `SCHOOL_WRITE`, `SCHOOL_DOCUMENT_READ`; `SchoolAccessService` valida Rede/unidade no backend |
 | Auditoria | alterações de cadastro, matrícula, movimentação, atribuição, calendário e horários registram eventos em `security_audit_event` |

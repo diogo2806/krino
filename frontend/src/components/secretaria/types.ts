@@ -1,0 +1,10 @@
+export type School = { id: number; code: string; name: string; address?: string; active: boolean; };
+export type Student = { id: number; registration: string; name: string; birthDate?: string; guardianName?: string; guardianProfession?: string; status: string; };
+export type Professional = { id: number; schoolId?: number; registration: string; name: string; professionalType: string; active: boolean; };
+export type SchoolClass = { id: number; schoolId: number; schoolName: string; academicYear: number; name: string; stage: string; shift: string; active: boolean; };
+export type Component = { id: number; code: string; name: string; };
+export type Enrollment = { id: number; studentId: number; registration: string; studentName: string; classId: number; className: string; schoolId: number; academicYear: number; enrollmentType: string; enrollmentDate: string; status: string; previousEnrollmentId?: number; };
+export type TeacherAssignment = { id: number; professionalId: number; professionalName: string; classId: number; componentId: number; componentName: string; validFrom: string; validUntil?: string; };
+export type CalendarDay = { id: number; schoolId: number; academicDate: string; schoolDay: boolean; description?: string; };
+export type Schedule = { id: number; classId: number; componentId: number; componentName: string; professionalId?: number; professionalName?: string; dayOfWeek: number; startTime: string; endTime: string; validFrom: string; validUntil?: string; };
+export type SchoolDocument = { type: string; title: string; subtitle: string; headers: string[]; rows: string[][]; paragraphs: string[]; generatedAt: string; };

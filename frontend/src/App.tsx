@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { LoginPage } from './components/auth/LoginPage';
-import { UsersAccessPage } from './components/admin/UsersAccessPage';
+import { ApplicationWorkspace } from './components/workspace/ApplicationWorkspace';
 import { clearToken, getToken, setToken } from './shared/api/client';
 
 export default function App() {
@@ -17,6 +17,6 @@ export default function App() {
   };
 
   return authenticated
-    ? <UsersAccessPage onLogout={handleLogout} />
+    ? <ApplicationWorkspace onLogout={handleLogout} />
     : <LoginPage onAuthenticated={handleAuthenticated} />;
 }

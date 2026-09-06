@@ -1,7 +1,6 @@
 package br.com.krino.identity;
 
 import java.sql.PreparedStatement;
-import java.sql.Statement;
 import java.util.List;
 import java.util.Objects;
 
@@ -56,7 +55,7 @@ public class IdentityService {
         jdbcTemplate.update(connection -> {
             PreparedStatement statement = connection.prepareStatement(
                     "insert into app_user (username, display_name, password_hash, active) values (?, ?, ?, true)",
-                    Statement.RETURN_GENERATED_KEYS);
+                    new String[] { "id" });
             statement.setString(1, username);
             statement.setString(2, displayName);
             statement.setString(3, passwordEncoder.encode(request.password()));
@@ -145,7 +144,7 @@ public class IdentityService {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement statement = connection.prepareStatement(
-                    "insert into access_role (name, description, system_role) values (?, ?, false)", Statement.RETURN_GENERATED_KEYS);
+                    "insert into access_role (name, description, system_role) values (?, ?, false)", new String[] { "id" });
             statement.setString(1, request.name().trim());
             statement.setString(2, request.description());
             return statement;

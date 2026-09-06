@@ -23,7 +23,7 @@ const manualSections = [
   { title: 'Regras', content: 'A conta só consulta estudantes vinculados pela Administração. Notas, frequência e notificações reutilizam dados já persistidos nos módulos acadêmicos e de entrada/saída. Nenhum identificador técnico é exibido.' },
   { title: 'Permissões', content: 'O acesso exige STUDENT_LINKED_READ e vínculo individual com o estudante. A validação é feita no backend em todas as consultas e mensagens.' },
   { title: 'Fluxos', content: 'Selecione o estudante, consulte boletim/frequência, leia comunicados e notificações e use Mensagens quando precisar falar com a escola.' },
-  { title: 'Mensagens e estados', content: 'Sem vínculo, sem lançamentos, carregamento, erro e conversa encerrada possuem estados próprios. Quando ainda não houver notas ou frequência no período, a tela informa isso sem apresentar zero artificial.' },
+  { title: 'Mensagens e estados', content: 'Sem permissão, sem vínculo, sem lançamentos, carregamento, erro e conversa encerrada possuem estados próprios. Quando ainda não houver notas ou frequência no período, a tela informa isso sem apresentar zero artificial.' },
 ];
 
 function formatAcademicDate(value: string) {
@@ -35,14 +35,18 @@ export function FamilyPortalPage({ context, onUnauthorized }: Props) {
   const currentYear = new Date().getFullYear();
   const [students, setStudents] = useState<LinkedStudent[]>([]); const [studentId, setStudentId] = useState(''); const [year, setYear] = useState(currentYear.toString()); const [period, setPeriod] = useState('1'); const [tab, setTab] = useState<Tab>('report');
   const [report, setReport] = useState<ReportCard>(); const [notifications, setNotifications] = useState<AccessNotification[]>([]); const [announcements, setAnnouncements] = useState<Announcement[]>([]); const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [newOpen, setNewOpen] = useState(false); const [conversation, setConversation] = useState<Conversation>();
+  const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [denied, setDenied] = useState(false); const [newOpen, setNewOpen] = useState(false); const [conversation, setConversation] = useState<Conversation>();
 
   const selectedStudent = students.find((item) => item.id.toString() === studentId);
   const loadStudents = useCallback(async () => {
+    setLoading(true); setError('');
     try {
-      const next = await apiRequest<LinkedStudent[]>('/family-portal/students'); setStudents(next); setStudentId((current) => current && next.some((item) => item.id.toString() === current) ? current : next[0]?.id.toString() ?? '');
-    } catch (exception) { if (exception instanceof ApiError && exception.status === 401) { onUnauthorized(); return; } setError(exception instanceof Error ? exception.message : 'Não foi possível carregar os estudantes vinculados.'); }
-    finally { setLoading(false); }
+      const next = await apiRequest<LinkedStudent[]>('/family-portal/students'); setStudents(next); setStudentId((current) => current && next.some((item) => item.id.toString() === current) ? current : next[0]?.id.toString() ?? ''); setDenied(false);
+    } catch (exception) {
+      if (exception instanceof ApiError && exception.status === 401) { onUnauthorized(); return; }
+      if (exception instanceof ApiError && exception.status === 403) { setDenied(true); return; }
+      setError(exception instanceof Error ? exception.message : 'Não foi possível carregar os estudantes vinculados.');
+    } finally { setLoading(false); }
   }, [onUnauthorized]);
 
   const loadStudentData = useCallback(async () => {
@@ -55,9 +59,12 @@ export function FamilyPortalPage({ context, onUnauthorized }: Props) {
         apiRequest<Announcement[]>(`/family-portal/students/${studentId}/announcements`),
         apiRequest<Conversation[]>(`/family-portal/students/${studentId}/conversations`),
       ]);
-      setReport(nextReport); setNotifications(nextNotifications); setAnnouncements(nextAnnouncements); setConversations(nextConversations);
-    } catch (exception) { if (exception instanceof ApiError && exception.status === 401) { onUnauthorized(); return; } setError(exception instanceof Error ? exception.message : 'Não foi possível carregar as informações do estudante.'); }
-    finally { setLoading(false); }
+      setReport(nextReport); setNotifications(nextNotifications); setAnnouncements(nextAnnouncements); setConversations(nextConversations); setDenied(false);
+    } catch (exception) {
+      if (exception instanceof ApiError && exception.status === 401) { onUnauthorized(); return; }
+      if (exception instanceof ApiError && exception.status === 403) { setDenied(true); return; }
+      setError(exception instanceof Error ? exception.message : 'Não foi possível carregar as informações do estudante.');
+    } finally { setLoading(false); }
   }, [studentId, year, period, onUnauthorized]);
 
   useEffect(() => { void loadStudents(); }, [loadStudents]);
@@ -67,7 +74,9 @@ export function FamilyPortalPage({ context, onUnauthorized }: Props) {
     { value: 'report' as Tab, label: 'Boletim' }, { value: 'attendance' as Tab, label: 'Frequência' }, { value: 'messages' as Tab, label: 'Mensagens' }, { value: 'announcements' as Tab, label: 'Comunicados' }, { value: 'notifications' as Tab, label: 'Notificações' },
   ], []);
 
-  return <main className="app-page"><PageHeader eyebrow="Família" title="Portal do Responsável" description={selectedStudent ? `Estudante selecionado: ${selectedStudent.name}.` : 'Acompanhe os estudantes vinculados à sua conta.'} manualSections={manualSections} />
+  if (denied) return <main className="app-page"><PageHeader eyebrow="Família" title="Portal do Responsável" description={`Acesso de ${context.displayName} aos estudantes legalmente vinculados.`} manualSections={manualSections} /><StateMessage title="Acesso não permitido" message="Sua conta não possui permissão ou vínculo válido para consultar este estudante." /></main>;
+
+  return <main className="app-page"><PageHeader eyebrow="Família" title="Portal do Responsável" description={selectedStudent ? `Estudante selecionado: ${selectedStudent.name}.` : `Olá, ${context.displayName}. Acompanhe os estudantes vinculados à sua conta.`} manualSections={manualSections} />
     {error ? <StateMessage kind="error" title="Não foi possível concluir a operação" message={error} /> : null}
     {students.length > 0 ? <FilterBar><SelectField name="familyStudent" label="Estudante" value={studentId} onChange={(event) => setStudentId(event.target.value)} options={students.map((item) => ({ value: item.id.toString(), label: `${item.name}${item.className ? ` · ${item.className}` : ''}` }))} /><SelectField name="familyYear" label="Ano letivo" value={year} onChange={(event) => setYear(event.target.value)} options={[currentYear - 2, currentYear - 1, currentYear, currentYear + 1].map((value) => ({ value: value.toString(), label: value.toString() }))} /><SelectField name="familyPeriod" label="Período" value={period} onChange={(event) => setPeriod(event.target.value)} options={[1,2,3,4].map((value) => ({ value: value.toString(), label: `${value}º período` }))} /></FilterBar> : null}
     {students.length === 0 && !loading ? <StateMessage title="Nenhum estudante vinculado" message="Sua conta ainda não possui estudante autorizado. Solicite à Administração da escola a validação do vínculo legal." /> : null}

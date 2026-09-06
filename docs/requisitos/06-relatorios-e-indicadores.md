@@ -13,8 +13,9 @@ Segmentações implementadas para o monitoramento:
 1. Rede/Município, quando a conta possui permissão municipal;
 2. unidade escolar;
 3. turma;
-4. período 1 a 4;
-5. fonte de resultados.
+4. estudante vinculado por matrícula à turma/ano selecionados;
+5. período 1 a 4;
+6. fonte de resultados.
 
 ### Cobertura de lançamentos internos
 
@@ -36,6 +37,8 @@ Cobertura = 90,00%
 ```
 
 Unidade: percentual. O resultado é arredondado para 2 casas decimais com `HALF_UP`. Se a quantidade de estudantes no escopo for zero, o percentual não é calculado e a interface apresenta `Sem base`.
+
+Na visão individual, `estudantes_no_escopo` vale 1 quando existe matrícula do estudante na turma/ano selecionados. A API rejeita combinações estudante/turma/ano sem matrícula correspondente.
 
 ### Aproveitamento observado das avaliações internas
 
@@ -67,6 +70,8 @@ Essa métrica representa desempenho observado na fonte interna e não correspond
 - evolução: calcula as mesmas métricas separadamente para os períodos 1, 2, 3 e 4;
 - visão de Rede: compara unidades escolares autorizadas;
 - visão de unidade escolar: compara as turmas do ano letivo;
+- visão de turma: compara os estudantes matriculados no ano;
+- visão de estudante: consolida somente os resultados daquele estudante na turma/ano selecionados;
 - os cards e gráficos respeitam ano, período, escopo e fonte selecionados;
 - ausência de dados não é apresentada como zero quando não existe base de cálculo.
 
@@ -78,7 +83,9 @@ Os documentos-fonte não detalham fórmula oficial suficiente para o KRINO calcu
 - `SIMULATION`: valor de cenário informado, obrigatoriamente classificado como `NON_OFFICIAL`;
 - `PROJECTION`: valor projetado informado, obrigatoriamente classificado como `NON_OFFICIAL`.
 
-Cada registro preserva indicador, ano, nível Rede/unidade, valor, identificação do cenário/referência, origem dos dados, premissas, usuário e data/hora. O sistema não executa fórmula oficial de IDEB/IDEPE nesta implementação.
+Os registros podem ser associados aos níveis `NETWORK`, `SCHOOL`, `CLASS` e `STUDENT`. Para turma e estudante, a API valida ano letivo, unidade escolar e matrícula antes da persistência. Cada registro preserva indicador, ano, nível, valor, identificação do cenário/referência, origem dos dados, premissas, usuário e data/hora.
+
+RF-038 é atendido pela estrutura de simulação por estudante, turma, escola e Município, sempre marcada como não oficial. RF-039 é atendido pelo registro/consulta de resultados observados e pela possibilidade de registrar projeções para o ano de referência desejado. O sistema não executa fórmula oficial de IDEB/IDEPE nesta implementação.
 
 ## Relatórios da Avaliação em Rede
 

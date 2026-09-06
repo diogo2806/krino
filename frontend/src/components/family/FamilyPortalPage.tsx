@@ -21,7 +21,7 @@ const manualSections = [
   { title: 'Campos e filtros', content: 'Estudante define de quem serão exibidas as informações. Ano letivo e período filtram boletim e frequência. Quando houver mais de um estudante vinculado, altere a seleção sem sair da tela.' },
   { title: 'Botões e ações', content: 'Nova mensagem inicia uma conversa com a escola do estudante selecionado. Abrir conversa permite consultar o histórico e responder enquanto a conversa estiver aberta.' },
   { title: 'Regras', content: 'A conta só consulta estudantes vinculados pela Administração. Notas e frequência reutilizam os lançamentos acadêmicos; a frequência usa o Diário do período como fonte principal e resultados consolidados como fallback. Falta e falta justificada representam ausência para o percentual. Nenhum identificador técnico é exibido.' },
-  { title: 'Permissões', content: 'O acesso exige STUDENT_LINKED_READ e vínculo individual com o estudante. A validação é feita no backend em todas as consultas e mensagens.' },
+  { title: 'Permissões', content: 'O acesso exige uma conta autorizada como responsável legal e um vínculo individual válido com o estudante. O backend valida esse vínculo em todas as consultas e mensagens.' },
   { title: 'Fluxos', content: 'Selecione o estudante, consulte boletim/frequência, leia comunicados e notificações e use Mensagens quando precisar falar com a escola.' },
   { title: 'Mensagens e estados', content: 'Sem permissão, sem vínculo, sem lançamentos, carregamento, erro e conversa encerrada possuem estados próprios. Quando ainda não houver notas ou frequência no período, a tela informa isso sem apresentar zero artificial.' },
 ];

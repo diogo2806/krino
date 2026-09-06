@@ -20,11 +20,11 @@ type Tab = 'messages' | 'announcements';
 const manualSections = [
   { title: 'Finalidade', content: 'Centralizar a comunicação da escola com responsáveis legalmente vinculados aos estudantes, por conversas rastreáveis e comunicados segmentados.' },
   { title: 'Campos e filtros', content: 'Unidade escolar define o escopo. Buscar localiza conversas por estudante, responsável ou assunto. Comunicados podem ser destinados à escola inteira, uma turma ou um estudante.' },
-  { title: 'Botões e ações', content: 'Nova conversa inicia contato com um responsável já vinculado. Abrir conversa permite responder. Novo comunicado publica uma informação para o público escolhido. Desativar comunicado pede confirmação e interrompe sua exibição no portal.' },
+  { title: 'Botões e ações', content: 'Nova conversa inicia contato com um responsável já vinculado. Abrir conversa permite responder enquanto ela estiver aberta. Novo comunicado publica uma informação para o público escolhido. Desativar comunicado pede confirmação e interrompe sua exibição no portal.' },
   { title: 'Regras', content: 'Somente responsáveis vinculados ao estudante podem participar das conversas. Escola, turma e estudante são validados no backend. O sistema não cria vínculos legais por meio desta tela.' },
-  { title: 'Permissões', content: 'FAMILY_COMMUNICATION_READ permite consulta. FAMILY_COMMUNICATION_WRITE permite iniciar/responder conversas, publicar e desativar comunicados no escopo autorizado.' },
+  { title: 'Permissões', content: 'A permissão de consulta permite visualizar conversas e comunicados da unidade autorizada. A permissão de gestão permite iniciar e responder conversas, publicar e desativar comunicados nesse mesmo escopo.' },
   { title: 'Fluxos', content: 'Selecione a unidade, consulte ou inicie conversas e publique comunicados. Para criar vínculo de responsável, use Administração > Usuários e acessos > Vincular estudantes.' },
-  { title: 'Mensagens e estados', content: 'A tela diferencia ausência de unidades autorizadas, ausência de conversa/comunicado, erro, carregamento e acesso negado. Nenhum identificador técnico é mostrado ao operador.' },
+  { title: 'Mensagens e estados', content: 'A tela diferencia ausência de unidades autorizadas, ausência de conversa/comunicado, conversa encerrada, erro, carregamento e acesso negado. Nenhum identificador técnico é mostrado ao operador.' },
 ];
 
 export function FamilyCommunicationPage({ context, onUnauthorized }: Props) {

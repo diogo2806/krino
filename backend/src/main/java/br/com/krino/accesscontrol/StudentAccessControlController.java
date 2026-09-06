@@ -44,7 +44,7 @@ public class StudentAccessControlController {
     }
 
     @PostMapping("/sync")
-    public List<SyncResult> sync(@RequestBody List<@Valid StudentAccessEventService.EventRequest> requests, Authentication authentication) {
+    public List<SyncResult> sync(@Valid @RequestBody List<@Valid StudentAccessEventService.EventRequest> requests, Authentication authentication) {
         if (requests == null || requests.isEmpty()) return List.of();
         if (requests.size() > 500) throw new IllegalArgumentException("Sincronize no máximo 500 eventos por lote.");
         List<SyncResult> results = new ArrayList<>();

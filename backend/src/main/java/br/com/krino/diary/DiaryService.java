@@ -96,23 +96,26 @@ public class DiaryService {
     public LessonView saveLesson(long diaryId, LocalDate date, int slot, SaveLessonRequest request, Authentication authentication) {
         DiaryAccessService.DiaryContext context = accessService.requireEdit(diaryId, authentication);
         if (slot < 1) throw new IllegalArgumentException("O número da aula deve ser maior que zero.");
-        int period = validatePeriod(request.period());
+        Integer requestedPeriod = validatePeriod(request.period());
         validateTeachingDate(context, date);
-        Long lessonId = jdbcTemplate.queryForObject(
+        SavedLesson saved = jdbcTemplate.queryForObject(
                 "insert into diary_lesson (diary_id, lesson_date, lesson_slot, period, content, planning_notes, created_by, updated_by) values (?, ?, ?, ?, ?, ?, ?, ?) "
-                        + "on conflict (diary_id, lesson_date, lesson_slot) do update set period = excluded.period, content = excluded.content, planning_notes = excluded.planning_notes, updated_by = excluded.updated_by, updated_at = current_timestamp returning id",
-                Long.class, diaryId, date, slot, period, request.content(), request.planningNotes(), authentication.getName(), authentication.getName());
+                        + "on conflict (diary_id, lesson_date, lesson_slot) do update set period = coalesce(excluded.period, diary_lesson.period), content = excluded.content, planning_notes = excluded.planning_notes, updated_by = excluded.updated_by, updated_at = current_timestamp returning id, period",
+                (rs, rowNum) -> new SavedLesson(rs.getLong("id"), nullableInteger(rs, "period")),
+                diaryId, date, slot, requestedPeriod, request.content(), request.planningNotes(), authentication.getName(), authentication.getName());
+        if (saved == null) throw new IllegalStateException("Não foi possível recuperar a aula salva.");
         if (request.attendance() != null) {
             for (AttendanceInput attendance : request.attendance()) {
                 ensureEnrollment(context.classId(), attendance.enrollmentId());
                 String status = normalizeAttendance(attendance.status());
                 jdbcTemplate.update(
                         "insert into diary_attendance (lesson_id, enrollment_id, attendance_status) values (?, ?, ?) on conflict (lesson_id, enrollment_id) do update set attendance_status = excluded.attendance_status, updated_at = current_timestamp",
-                        lessonId, attendance.enrollmentId(), status);
+                        saved.id(), attendance.enrollmentId(), status);
             }
         }
-        auditService.record(authentication.getName(), "DIARY_LESSON_SAVED", "DIARY", Long.toString(diaryId), date + " / aula " + slot + " / período " + period);
-        return toLessonView(lessonId, diaryId, date, slot, period, request.content(), request.planningNotes(), authentication.getName(), authentication.getName());
+        String details = date + " / aula " + slot + (saved.period() == null ? "" : " / período " + saved.period());
+        auditService.record(authentication.getName(), "DIARY_LESSON_SAVED", "DIARY", Long.toString(diaryId), details);
+        return toLessonView(saved.id(), diaryId, date, slot, saved.period(), request.content(), request.planningNotes(), authentication.getName(), authentication.getName());
     }
 
     public void validateTeachingDate(DiaryAccessService.DiaryContext context, LocalDate date) {
@@ -189,8 +192,9 @@ public class DiaryService {
         if (count == null || count == 0) throw new IllegalArgumentException("A frequência contém estudante sem matrícula ativa nesta turma.");
     }
 
-    private int validatePeriod(Integer period) {
-        if (period == null || period < 1 || period > 4) throw new IllegalArgumentException("Selecione o período letivo entre 1 e 4.");
+    private Integer validatePeriod(Integer period) {
+        if (period == null) return null;
+        if (period < 1 || period > 4) throw new IllegalArgumentException("Selecione o período letivo entre 1 e 4.");
         return period;
     }
 
@@ -221,6 +225,7 @@ public class DiaryService {
     }
 
     private record ClassCore(Long id, Long schoolId, String name) {}
+    private record SavedLesson(Long id, Integer period) {}
 
     public record CreateDiaryRequest(@NotNull(message = "Selecione a turma.") Long classId, Long componentId,
                                      @NotBlank(message = "Selecione a modalidade do diário.") String mode,

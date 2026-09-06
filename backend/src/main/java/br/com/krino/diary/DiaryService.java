@@ -87,8 +87,8 @@ public class DiaryService {
         LocalDate end = to == null ? (context.validUntil() == null ? start.plusMonths(3) : context.validUntil()) : to;
         if (end.isBefore(start)) throw new IllegalArgumentException("O período final da consulta não pode ser anterior ao inicial.");
         return jdbcTemplate.query(
-                "select id, diary_id, lesson_date, lesson_slot, content, planning_notes, created_by, updated_by from diary_lesson where diary_id = ? and lesson_date between ? and ? order by lesson_date, lesson_slot",
-                (rs, rowNum) -> toLessonView(rs.getLong("id"), rs.getLong("diary_id"), rs.getDate("lesson_date").toLocalDate(), rs.getInt("lesson_slot"), rs.getString("content"), rs.getString("planning_notes"), rs.getString("created_by"), rs.getString("updated_by")),
+                "select id, diary_id, lesson_date, lesson_slot, period, content, planning_notes, created_by, updated_by from diary_lesson where diary_id = ? and lesson_date between ? and ? order by lesson_date, lesson_slot",
+                (rs, rowNum) -> toLessonView(rs.getLong("id"), rs.getLong("diary_id"), rs.getDate("lesson_date").toLocalDate(), rs.getInt("lesson_slot"), nullableInteger(rs, "period"), rs.getString("content"), rs.getString("planning_notes"), rs.getString("created_by"), rs.getString("updated_by")),
                 diaryId, start, end);
     }
 
@@ -96,22 +96,26 @@ public class DiaryService {
     public LessonView saveLesson(long diaryId, LocalDate date, int slot, SaveLessonRequest request, Authentication authentication) {
         DiaryAccessService.DiaryContext context = accessService.requireEdit(diaryId, authentication);
         if (slot < 1) throw new IllegalArgumentException("O número da aula deve ser maior que zero.");
+        Integer requestedPeriod = validatePeriod(request.period());
         validateTeachingDate(context, date);
-        Long lessonId = jdbcTemplate.queryForObject(
-                "insert into diary_lesson (diary_id, lesson_date, lesson_slot, content, planning_notes, created_by, updated_by) values (?, ?, ?, ?, ?, ?, ?) "
-                        + "on conflict (diary_id, lesson_date, lesson_slot) do update set content = excluded.content, planning_notes = excluded.planning_notes, updated_by = excluded.updated_by, updated_at = current_timestamp returning id",
-                Long.class, diaryId, date, slot, request.content(), request.planningNotes(), authentication.getName(), authentication.getName());
+        SavedLesson saved = jdbcTemplate.queryForObject(
+                "insert into diary_lesson (diary_id, lesson_date, lesson_slot, period, content, planning_notes, created_by, updated_by) values (?, ?, ?, ?, ?, ?, ?, ?) "
+                        + "on conflict (diary_id, lesson_date, lesson_slot) do update set period = coalesce(excluded.period, diary_lesson.period), content = excluded.content, planning_notes = excluded.planning_notes, updated_by = excluded.updated_by, updated_at = current_timestamp returning id, period",
+                (rs, rowNum) -> new SavedLesson(rs.getLong("id"), nullableInteger(rs, "period")),
+                diaryId, date, slot, requestedPeriod, request.content(), request.planningNotes(), authentication.getName(), authentication.getName());
+        if (saved == null) throw new IllegalStateException("Não foi possível recuperar a aula salva.");
         if (request.attendance() != null) {
             for (AttendanceInput attendance : request.attendance()) {
                 ensureEnrollment(context.classId(), attendance.enrollmentId());
                 String status = normalizeAttendance(attendance.status());
                 jdbcTemplate.update(
                         "insert into diary_attendance (lesson_id, enrollment_id, attendance_status) values (?, ?, ?) on conflict (lesson_id, enrollment_id) do update set attendance_status = excluded.attendance_status, updated_at = current_timestamp",
-                        lessonId, attendance.enrollmentId(), status);
+                        saved.id(), attendance.enrollmentId(), status);
             }
         }
-        auditService.record(authentication.getName(), "DIARY_LESSON_SAVED", "DIARY", Long.toString(diaryId), date + " / aula " + slot);
-        return toLessonView(lessonId, diaryId, date, slot, request.content(), request.planningNotes(), authentication.getName(), authentication.getName());
+        String details = date + " / aula " + slot + (saved.period() == null ? "" : " / período " + saved.period());
+        auditService.record(authentication.getName(), "DIARY_LESSON_SAVED", "DIARY", Long.toString(diaryId), details);
+        return toLessonView(saved.id(), diaryId, date, slot, saved.period(), request.content(), request.planningNotes(), authentication.getName(), authentication.getName());
     }
 
     public void validateTeachingDate(DiaryAccessService.DiaryContext context, LocalDate date) {
@@ -143,11 +147,11 @@ public class DiaryService {
         }
     }
 
-    private LessonView toLessonView(long lessonId, long diaryId, LocalDate date, int slot, String content, String planningNotes, String createdBy, String updatedBy) {
+    private LessonView toLessonView(long lessonId, long diaryId, LocalDate date, int slot, Integer period, String content, String planningNotes, String createdBy, String updatedBy) {
         List<AttendanceView> attendance = jdbcTemplate.query(
                 "select a.enrollment_id, st.id student_id, st.name student_name, a.attendance_status from diary_attendance a join student_enrollment e on e.id = a.enrollment_id join student st on st.id = e.student_id where a.lesson_id = ? order by st.name",
                 (rs, rowNum) -> new AttendanceView(rs.getLong("enrollment_id"), rs.getLong("student_id"), rs.getString("student_name"), rs.getString("attendance_status")), lessonId);
-        return new LessonView(lessonId, diaryId, date, slot, content, planningNotes, createdBy, updatedBy, attendance);
+        return new LessonView(lessonId, diaryId, date, slot, period, content, planningNotes, createdBy, updatedBy, attendance);
     }
 
     private DiaryView mapDiary(java.sql.ResultSet rs, Authentication authentication) throws java.sql.SQLException {
@@ -188,6 +192,12 @@ public class DiaryService {
         if (count == null || count == 0) throw new IllegalArgumentException("A frequência contém estudante sem matrícula ativa nesta turma.");
     }
 
+    private Integer validatePeriod(Integer period) {
+        if (period == null) return null;
+        if (period < 1 || period > 4) throw new IllegalArgumentException("Selecione o período letivo entre 1 e 4.");
+        return period;
+    }
+
     private String normalizeMode(String mode) {
         String normalized = mode == null ? "" : mode.trim().toUpperCase();
         return switch (normalized) {
@@ -209,17 +219,23 @@ public class DiaryService {
         return rs.wasNull() ? null : value;
     }
 
+    private Integer nullableInteger(java.sql.ResultSet rs, String column) throws java.sql.SQLException {
+        int value = rs.getInt(column);
+        return rs.wasNull() ? null : value;
+    }
+
     private record ClassCore(Long id, Long schoolId, String name) {}
+    private record SavedLesson(Long id, Integer period) {}
 
     public record CreateDiaryRequest(@NotNull(message = "Selecione a turma.") Long classId, Long componentId,
                                      @NotBlank(message = "Selecione a modalidade do diário.") String mode,
                                      @NotNull(message = "Selecione o professor responsável.") Long responsibleProfessionalId,
                                      @NotNull(message = "Informe o início da vigência.") LocalDate validFrom, LocalDate validUntil) {}
-    public record SaveLessonRequest(String content, String planningNotes, List<AttendanceInput> attendance) {}
+    public record SaveLessonRequest(Integer period, String content, String planningNotes, List<AttendanceInput> attendance) {}
     public record AttendanceInput(@NotNull(message = "Informe a matrícula do estudante.") Long enrollmentId, @NotBlank(message = "Informe a frequência.") String status) {}
     public record RosterStudent(Long enrollmentId, Long studentId, String registration, String name) {}
     public record AttendanceView(Long enrollmentId, Long studentId, String studentName, String status) {}
-    public record LessonView(Long id, Long diaryId, LocalDate lessonDate, Integer lessonSlot, String content, String planningNotes, String createdBy, String updatedBy, List<AttendanceView> attendance) {}
+    public record LessonView(Long id, Long diaryId, LocalDate lessonDate, Integer lessonSlot, Integer period, String content, String planningNotes, String createdBy, String updatedBy, List<AttendanceView> attendance) {}
     public record DiaryView(Long id, Long classId, String className, Long schoolId, String schoolName, Long componentId, String componentName, String mode,
                             Long responsibleProfessionalId, String responsibleProfessionalName, LocalDate validFrom, LocalDate validUntil, boolean active, boolean editable) {}
 }

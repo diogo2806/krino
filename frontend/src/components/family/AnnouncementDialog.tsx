@@ -1,0 +1,17 @@
+import { useEffect, useState, type FormEvent } from 'react';
+import { apiRequest } from '../../shared/api/client';
+import { Button } from '../button/Button';
+import { SelectField } from '../form/SelectField';
+import { TextAreaField } from '../form/TextAreaField';
+import { TextField } from '../form/TextField';
+import { Modal } from '../modal/Modal';
+import type { Announcement, FamilyClass, FamilyStudentOption } from './types';
+
+type Props = { open: boolean; schoolId?: number; classes: FamilyClass[]; students: FamilyStudentOption[]; onClose: () => void; onSaved: (announcement: Announcement) => Promise<void>; };
+
+export function AnnouncementDialog({ open, schoolId, classes, students, onClose, onSaved }: Props) {
+  const [audienceType, setAudienceType] = useState<'SCHOOL' | 'CLASS' | 'STUDENT'>('SCHOOL'); const [classId, setClassId] = useState(''); const [studentId, setStudentId] = useState(''); const [title, setTitle] = useState(''); const [body, setBody] = useState(''); const [error, setError] = useState(''); const [saving, setSaving] = useState(false);
+  useEffect(() => { if (open) { setAudienceType('SCHOOL'); setClassId(''); setStudentId(''); setTitle(''); setBody(''); setError(''); } }, [open]);
+  async function submit(event: FormEvent) { event.preventDefault(); if (!schoolId) return; setSaving(true); setError(''); try { const item = await apiRequest<Announcement>('/family-communication/announcements', { method: 'POST', body: JSON.stringify({ schoolId, audienceType, classId: audienceType === 'CLASS' ? Number(classId) : null, studentId: audienceType === 'STUDENT' ? Number(studentId) : null, title, body }) }); await onSaved(item); onClose(); } catch (exception) { setError(exception instanceof Error ? exception.message : 'Não foi possível publicar o comunicado.'); } finally { setSaving(false); } }
+  return <Modal open={open} title="Novo comunicado" onClose={onClose} footer={<><Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button><Button type="submit" form="family-announcement-form" variant="primary" disabled={saving}>{saving ? 'Publicando...' : 'Publicar comunicado'}</Button></>}><form id="family-announcement-form" className="form-stack" onSubmit={submit}><SelectField name="announcementAudience" label="Público" value={audienceType} onChange={(event) => setAudienceType(event.target.value as 'SCHOOL' | 'CLASS' | 'STUDENT')} options={[{ value: 'SCHOOL', label: 'Toda a escola' }, { value: 'CLASS', label: 'Uma turma' }, { value: 'STUDENT', label: 'Um estudante' }]} />{audienceType === 'CLASS' ? <SelectField name="announcementClass" label="Turma" required value={classId} onChange={(event) => setClassId(event.target.value)} options={[{ value: '', label: 'Selecione' }, ...classes.map((item) => ({ value: item.id.toString(), label: `${item.name} · ${item.academicYear}` }))]} /> : null}{audienceType === 'STUDENT' ? <SelectField name="announcementStudent" label="Estudante" required value={studentId} onChange={(event) => setStudentId(event.target.value)} options={[{ value: '', label: 'Selecione' }, ...students.map((item) => ({ value: item.id.toString(), label: `${item.name} · ${item.className}` }))]} /> : null}<TextField name="announcementTitle" label="Título" required value={title} onChange={(event) => setTitle(event.target.value)} /><TextAreaField name="announcementBody" label="Mensagem" required value={body} onChange={(event) => setBody(event.target.value)} />{error ? <p className="form-error">{error}</p> : null}</form></Modal>;
+}

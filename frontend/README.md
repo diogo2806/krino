@@ -69,7 +69,15 @@ Entrada e Saída
   - Fila offline/sincronização
   - Histórico
   - Carteirinha QR
+Comunicação com Famílias
+  - Mensagens escola-responsável
+  - Comunicados por Escola/Turma/Estudante
 Portal do Responsável
+  - Boletim
+  - Frequência
+  - Mensagens
+  - Comunicados
+  - Notificações de entrada/saída
 Transporte Universitário
 Avaliações em Rede
   - Avaliações
@@ -81,6 +89,7 @@ Avaliações em Rede
 Administração
   - Usuários
   - Perfis/permissões
+  - Vínculo responsável-estudante
   - Auditoria
   - Suporte
 ```
@@ -150,14 +159,65 @@ A notificação ao responsável não é apresentada como SMS/e-mail. O backend d
 
 Os estilos ficam em `src/shared/styles/access-control.css`, importado exclusivamente por `src/shared/styles/index.css`. A impressão da carteirinha é escopada ao modal aberto para não interferir em outros documentos imprimíveis do KRINO.
 
+## Portal do Responsável
+
+`src/components/family/FamilyPortalPage.tsx` é a área do responsável legal. O filtro superior mantém o estudante sempre explícito e permite selecionar ano letivo e período. A página possui as seções:
+
+- **Boletim**: mostra resultados consolidados por componente e avaliações detalhadas do Diário;
+- **Frequência**: reutiliza aulas/faltas consolidadas e mostra cards com aulas consideradas, faltas e percentual;
+- **Mensagens**: lista conversas com a escola e permite iniciar/responder;
+- **Comunicados**: exibe somente comunicados ativos aplicáveis à Escola, Turma ou Estudante atual;
+- **Notificações**: consome notificações internas da Entrada e Saída após recebimento pelo backend.
+
+A fórmula de frequência mostrada na interface é `(aulas - faltas) ÷ aulas × 100`. Quando não existe quantidade de aulas válida, a tela mostra `Sem base`; não apresenta 0% artificial. Datas acadêmicas sem horário são formatadas como data local para não sofrer deslocamento de fuso.
+
+A autorização não depende do menu: cada endpoint exige `STUDENT_LINKED_READ` e vínculo individual `linked_resource_access` com o estudante. Estados de sem permissão, sem vínculo, sem lançamentos, vazio, carregamento e erro são explícitos.
+
+Componentes de domínio:
+
+- `FamilyConversationDialog`: histórico e resposta do responsável;
+- `NewFamilyConversationDialog`: nova conversa com a escola;
+- `MetricCard`: reutilizado na frequência;
+- `SegmentedTabs`, `FilterBar`, `StateMessage`, `PageHeader` e componentes de formulário compartilhados.
+
+## Comunicação com Famílias
+
+`src/components/family/FamilyCommunicationPage.tsx` atende equipe escolar autorizada. A tela mantém a unidade escolar como escopo explícito e separa:
+
+- **Mensagens**: busca por estudante, responsável ou assunto, abertura de histórico, resposta e nova conversa somente com responsável ativo e vinculado;
+- **Comunicados**: publicação para toda a escola, uma turma ou um estudante; desativação pede confirmação e preserva histórico.
+
+`FAMILY_COMMUNICATION_READ` habilita consulta; `FAMILY_COMMUNICATION_WRITE` habilita escrita no escopo autorizado. Criar vínculo legal não pertence a esta tela: a própria interface orienta usar **Administração > Usuários e acessos > Vincular estudantes**.
+
+Componentes envolvidos:
+
+- `StaffConversationDialog`;
+- `AnnouncementDialog`;
+- `ConfirmDialog` para desativação;
+- componentes compartilhados de filtro, formulários, navegação e estados.
+
+## Vínculo responsável-estudante
+
+`src/components/admin/LinkedStudentsDialog.tsx` integra a autorização individual à tela **Usuários e acessos**. A ação `Vincular estudantes` aparece somente quando:
+
+1. o operador possui `SCOPE_ASSIGN`;
+2. a conta selecionada possui perfil atualmente atribuído cuja lista de permissões inclui `STUDENT_LINKED_READ`.
+
+O diálogo permite buscar por nome/matrícula, consultar vínculos atuais, vincular e remover. A Administração não concede acesso apenas pelo perfil: o estudante precisa ser vinculado individualmente.
+
+## Estilos da família
+
+Todo o domínio usa `src/shared/styles/family.css`, importado exclusivamente por `src/shared/styles/index.css`. Não há import CSS em componentes nem estilos inline. Regras usam os tokens existentes e possuem adaptação para telas móveis.
+
 ## UX Writing
 
 - Usar linguagem educacional clara, evitando termos internos de banco/API.
-- Botões devem descrever a ação: `Salvar diário`, `Registrar entrada`, `Registrar saída`, `Sincronizar agora`, `Solicitar ajuste`, `Aprovar solicitação`, `Processar gabaritos`, `Exportar dados`.
+- Botões devem descrever a ação: `Salvar diário`, `Registrar entrada`, `Registrar saída`, `Sincronizar agora`, `Nova mensagem`, `Enviar mensagem`, `Novo comunicado`, `Publicar comunicado`, `Vincular estudantes`, `Solicitar ajuste`, `Aprovar solicitação`, `Processar gabaritos`, `Exportar dados`.
 - Mensagens de erro devem informar o problema e a ação necessária.
 - Validações de calendário/horário no diário devem explicar por que o lançamento foi bloqueado.
 - Estado do transporte deve usar nomenclatura consistente em todas as telas.
 - Resultados e dashboards devem deixar claro o nível de análise selecionado: Rede, Escola, Turma ou Estudante.
+- No Portal do Responsável, o estudante selecionado deve permanecer explícito e termos técnicos como `studentId`, `guardianId`, UUID ou códigos de permissão não são apresentados no conteúdo operacional.
 
 ## API em runtime
 

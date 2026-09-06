@@ -43,6 +43,7 @@ A matriz abaixo relaciona os grupos de requisitos do KRINO às fontes anexadas e
 | Professor responsável | `class_diary.responsible_professional_id`; `professional_user_account` vincula a conta de login ao profissional da educação |
 | Autorização docente | `DiaryAccessService#requireEdit` permite edição ao professor responsável com `DIARY_EDIT`; `DIARY_ADMIN` permite administração autorizada |
 | Frequência e conteúdo | `diary_lesson`, `diary_attendance`, `/api/diaries/{id}/lessons`; `LessonEditor` apresenta frequência, conteúdo e observações pedagógicas |
+| Período da aula | `diary_lesson.period` permite 1 a 4 e o frontend atual exige a classificação em novos lançamentos; a API mantém compatibilidade com chamadas antigas sem `period`, preserva o período já salvo em edições legadas e não atribui artificialmente aulas antigas com período nulo |
 | Dia letivo | `DiaryService#validateTeachingDate` consulta `school_calendar_day` e bloqueia lançamento fora de dia letivo no backend |
 | Horário de Anos Finais/EJA | `DiaryService#validateTeachingDate` consulta `class_schedule` por turma, componente, dia da semana e vigência antes do lançamento |
 | Atribuição vigente | o lançamento também exige `teacher_assignment` vigente para professor, turma e componente aplicável |
@@ -97,6 +98,26 @@ A matriz abaixo relaciona os grupos de requisitos do KRINO às fontes anexadas e
 | Permissões | `ACCESS_CONTROL_READ`, `ACCESS_CONTROL_WRITE`, `ACCESS_CARD_MANAGE`; `AccessControlAccessService` valida Rede/unidade no backend; perfil-base `Operador de entrada e saída` possui leitura/registro |
 | Auditoria | novas entradas/saídas geram `STUDENT_ACCESS_EVENT_RECORDED`; reenvios idempotentes não duplicam auditoria; emissão inicial de QR gera `STUDENT_ACCESS_CARD_ISSUED` |
 | Frontend | `AccessControlPage`, `QrScanner`, `StudentAccessCardDialog`, componentes compartilhados e Manual da Tela no header; estilos em `frontend/src/shared/styles/access-control.css` via `index.css` |
+
+## Implementação de RF-051 a RF-055
+
+| Requisito / grupo | Implementação |
+|---|---|
+| RF-051 Estudantes vinculados | `linked_resource_access` com `resource_type=STUDENT` + `STUDENT_LINKED_READ`; `FamilyPortalAccessService#requireLinkedStudent` valida ambos em toda operação do portal |
+| Administração do vínculo | `LinkedStudentAdminService`, `/api/admin/users/{userId}/linked-students` e `LinkedStudentsDialog`; exige `SCOPE_ASSIGN`, conta ativa e perfil atual que contenha `STUDENT_LINKED_READ`; vínculo/desvínculo é auditado e remoção pede confirmação no frontend |
+| Situação escolar atual | Portal, Administração de vínculo e Comunicação com Famílias selecionam somente a matrícula `ACTIVE` mais recente por ano/data/id quando precisam da turma/unidade atual, evitando duplicidade ou exposição de matrícula ativa de ano anterior |
+| RF-052 Boletim/notas | `FamilyPortalService#reportCard` reutiliza `student_term_result` para resultados consolidados e `diary_assessment`/`diary_assessment_grade` para avaliações detalhadas, sem duplicar notas |
+| RF-053 Frequência/faltas | `FamilyAttendanceService` usa `diary_attendance` + `diary_lesson.period` como fonte primária; quando não há aula classificada no período, usa `student_term_result.classes_count`/`absences` como fallback consolidado; aulas legadas com período nulo não são atribuídas artificialmente |
+| Fórmula de frequência | `frequência (%) = ((aulas - faltas) / aulas) * 100`; faltas acima das aulas não produzem percentual negativo; resultado `HALF_UP` com 2 casas; sem aulas retorna `Sem base` |
+| Memória de cálculo | 50 aulas e 2 faltas: aulas frequentadas = `50 - 2 = 48`; frequência = `(48 / 50) * 100 = 96,00%` |
+| RF-054 Mensagens | `family_conversation` e `family_message` preservam estudante, escola, responsável, remetente, assunto, corpo, tipo do remetente e data/hora; portal e escola podem iniciar/responder conforme autorização; conversa encerrada é somente leitura |
+| RF-055 Comunicados | `family_announcement` permite público Escola, Turma ou Estudante; desativação preserva histórico e interrompe exibição no portal |
+| RF-055 Notificações | `FamilyPortalService#notifications` consome `student_access_notification` da Entrada e Saída; evento offline só aparece depois da sincronização no backend |
+| Comunicação pela escola | `FamilyCommunicationService` e `/api/family-communication`; `FAMILY_COMMUNICATION_READ/WRITE` respeitam Rede/unidade; conversa só pode usar responsável ativo, vinculado e ainda autorizado por perfil |
+| Remoção de autorização | remover `STUDENT_LINKED_READ` ou vínculo individual impede novas consultas/mensagens do responsável mesmo que histórico de conversa permaneça persistido |
+| Auditoria | vínculo/desvínculo, início de conversa, envio de mensagem, publicação e desativação de comunicado registram eventos em `security_audit_event` |
+| Teste de cálculo | `FamilyAttendanceCalculatorTest` cobre 96,00%, arredondamento 66,67%, ausência de base e proteção contra frequência negativa |
+| Frontend | `FamilyPortalPage`, `FamilyCommunicationPage`, dialogs de conversa/comunicado e `LinkedStudentsDialog`; todas as páginas novas usam Manual da Tela, componentes em `frontend/src/components` e estilos em `frontend/src/shared/styles/family.css` via `index.css` |
 
 ## Implementação de RF-087 a RF-089
 

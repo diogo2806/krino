@@ -57,21 +57,24 @@ A matriz abaixo relaciona os grupos de requisitos do KRINO às fontes anexadas e
 
 | Requisito / grupo | Implementação |
 |---|---|
-| Consolidação de resultados internos | `PedagogicalMetricProvider` define o contrato de fontes; `DiaryPedagogicalMetricProvider` consolida avaliações/notas do Diário de Classe |
-| Visão municipal | `PedagogicalMonitoringService#summary` com escopo `NETWORK`; disponível apenas com permissão municipal `MONITORING_READ`/`MONITORING_MANAGE` |
-| Visão por unidade escolar | `PedagogicalMonitoringService#summary` com `schoolId`, respeitando o escopo de unidade |
-| Visão por turma | `PedagogicalMonitoringService#summary` com `classId`, validando ano letivo e escola da turma |
+| RF-034 Consolidação interna | `PedagogicalMetricProvider` define o contrato de fontes; `DiaryPedagogicalMetricProvider` consolida avaliações/notas do Diário por período |
+| RF-035 Visão municipal | `PedagogicalMonitoringService#summary` com escopo `NETWORK`; exige permissão municipal `MONITORING_READ`/`MONITORING_MANAGE` |
+| RF-036 Visão por escola | `summary` com `schoolId`, respeitando escopo autorizado da unidade |
+| RF-037 Visão por turma | `summary` com `classId`, validando ano letivo e unidade da turma |
+| Visão individual | `GET /api/pedagogical-monitoring/students` e `summary` com `studentId`; valida matrícula real na turma/ano antes de consolidar |
+| RF-038 Simulação IDEB | `pedagogical_indicator_record` suporta `SIMULATION` em Rede, Escola, Turma e Estudante; classificação é obrigatoriamente `NON_OFFICIAL` e o KRINO não inventa fórmula oficial |
+| RF-039 Resultado prévio/projeção | o mesmo registro suporta `OBSERVED_RESULT` documentado e `PROJECTION` não oficial para o ano informado, preservando origem e premissas |
+| RF-040 Indicadores educacionais | cards e gráficos exibem cobertura, aproveitamento observado, volume de estudantes/resultados e evolução por período; IDEB/IDEPE documentados permanecem separados das métricas internas |
+| RF-041 Integração Avaliação em Rede | novos resultados implementam `PedagogicalMetricProvider`; escolas, turmas e estudantes centrais são reutilizados e a fonte passa a aparecer no filtro do frontend |
 | Filtro por período | períodos 1 a 4 aplicados à fonte interna sem remover estudantes da base de cobertura |
-| Evolução temporal | `PedagogicalMonitoringService#trend` calcula os mesmos indicadores para os quatro períodos comparáveis |
-| Comparação entre níveis | `breakdown`: Rede compara unidades; unidade escolar compara turmas |
+| Evolução temporal | `PedagogicalMonitoringService#trend` calcula os indicadores para os quatro períodos em Rede, Escola, Turma ou Estudante |
+| Comparação hierárquica | `breakdown`: Rede compara escolas; escola compara turmas; turma compara estudantes |
 | Cobertura | `(estudantes_com_resultado / estudantes_no_escopo) * 100`, arredondamento `HALF_UP` em 2 casas; sem base retorna percentual indisponível |
 | Aproveitamento observado | `(soma_das_notas / soma_das_pontuacoes_maximas_correspondentes) * 100`, somente notas com pontuação máxima; `HALF_UP` em 2 casas; não representa IDEB/IDEPE |
-| IDEB/IDEPE | `pedagogical_indicator_record` diferencia resultado observado documentado, simulação não oficial e projeção não oficial; nenhuma fórmula oficial é inventada |
-| Integração futura da Avaliação em Rede | novos resultados devem implementar `PedagogicalMetricProvider`, preservando escolas, turmas e estudantes centrais e aparecendo no filtro Fonte de resultados |
 | Habilidades/descritores | frontend apresenta estado informativo até existir fonte avaliativa integrada com esses dados; não simula dados inexistentes |
 | Permissões | `MONITORING_READ` e `MONITORING_MANAGE` por Rede/unidade no backend e refletidas no frontend |
 | Auditoria | criação de referências IDEB/IDEPE, simulações e projeções registra `PEDAGOGICAL_INDICATOR_RECORDED` |
-| Frontend | `MonitoringPage`, `MetricCard`, `TrendLineChart`, `ProgressBarChart` e `IndicatorRecordDialog`; dashboard usa cards e gráficos, Manual da Tela no header e estilos em `frontend/src/shared/styles/monitoring.css` |
+| Frontend | `MonitoringPage`, `MetricCard`, `TrendLineChart`, `ProgressBarChart` e `IndicatorRecordDialog`; dashboard usa cards e gráficos, possui filtros até estudante/fonte, Manual da Tela no header e estilos em `frontend/src/shared/styles/monitoring.css` |
 
 ## Implementação de RF-087 a RF-089
 

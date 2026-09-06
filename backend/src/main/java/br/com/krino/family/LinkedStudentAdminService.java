@@ -27,7 +27,8 @@ public class LinkedStudentAdminService {
         return jdbcTemplate.query(
                 "select st.id, st.registration, st.name, s.name school_name, c.name class_name "
                         + "from linked_resource_access lra join student st on st.id::text = lra.resource_reference "
-                        + "left join student_enrollment e on e.student_id = st.id and e.status = 'ACTIVE' "
+                        + "left join lateral (select e.class_id from student_enrollment e where e.student_id = st.id and e.status = 'ACTIVE' "
+                        + "order by e.academic_year desc, e.enrollment_date desc, e.id desc limit 1) e on true "
                         + "left join school_class c on c.id = e.class_id left join school_unit s on s.id = c.school_id "
                         + "where lra.user_id = ? and lra.resource_type = 'STUDENT' order by st.name",
                 (rs, rowNum) -> new StudentOption(rs.getLong("id"), rs.getString("registration"), rs.getString("name"), rs.getString("school_name"), rs.getString("class_name")), userId);
@@ -38,7 +39,8 @@ public class LinkedStudentAdminService {
         String term = search == null ? "" : search.trim();
         return jdbcTemplate.query(
                 "select st.id, st.registration, st.name, s.name school_name, c.name class_name "
-                        + "from student st left join student_enrollment e on e.student_id = st.id and e.status = 'ACTIVE' "
+                        + "from student st left join lateral (select e.class_id from student_enrollment e where e.student_id = st.id and e.status = 'ACTIVE' "
+                        + "order by e.academic_year desc, e.enrollment_date desc, e.id desc limit 1) e on true "
                         + "left join school_class c on c.id = e.class_id left join school_unit s on s.id = c.school_id "
                         + "where st.status = 'ACTIVE' and (? = '' or lower(st.name) like lower(?) or lower(st.registration) like lower(?)) "
                         + "order by st.name limit 100",

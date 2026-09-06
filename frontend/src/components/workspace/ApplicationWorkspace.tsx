@@ -23,10 +23,10 @@ export function ApplicationWorkspace({ onLogout }: ApplicationWorkspaceProps) {
       const next = await apiRequest<AccessContext>('/auth/access-context');
       setContext(next);
       const canSecretaria = next.permissions.some((permission) => permission.startsWith('SCHOOL_'));
-      const canDiary = next.permissions.some((permission) => permission.startsWith('DIARY_') || permission === 'CURRICULUM_MANAGE');
+      const canDiary = next.permissions.some((permission) => permission.startsWith('DIARY_'));
       const canAdmin = next.networkPermissions.some((permission) => ['USER_READ', 'ROLE_READ'].includes(permission));
       const valid = (current?: Module) => current && ((current === 'secretaria' && canSecretaria) || (current === 'diario' && canDiary) || (current === 'admin' && canAdmin));
-      const preferred = next.permissions.includes('DIARY_EDIT') ? 'diario' : canSecretaria ? 'secretaria' : canDiary ? 'diario' : canAdmin ? 'admin' : undefined;
+      const preferred: Module | undefined = next.permissions.includes('DIARY_EDIT') ? 'diario' : canSecretaria ? 'secretaria' : canDiary ? 'diario' : canAdmin ? 'admin' : undefined;
       setModule((current) => valid(current) ? current : preferred);
     } catch (exception) {
       if (exception instanceof ApiError && exception.status === 401) { onLogout(); return; }
@@ -41,7 +41,7 @@ export function ApplicationWorkspace({ onLogout }: ApplicationWorkspaceProps) {
   if (!context || !module) return <main className="app-page"><StateMessage title="Nenhum módulo disponível" message="Sua conta está ativa, mas ainda não possui permissão para um módulo do sistema." /><Button type="button" variant="ghost" onClick={onLogout}><LogOut aria-hidden="true" size={18} />Sair</Button></main>;
 
   const canSecretaria = context.permissions.some((permission) => permission.startsWith('SCHOOL_'));
-  const canDiary = context.permissions.some((permission) => permission.startsWith('DIARY_') || permission === 'CURRICULUM_MANAGE');
+  const canDiary = context.permissions.some((permission) => permission.startsWith('DIARY_'));
   const canAdmin = context.networkPermissions.some((permission) => ['USER_READ', 'ROLE_READ'].includes(permission));
 
   return <><nav className="workspace-nav" aria-label="Módulos do KRINO"><div className="workspace-nav__modules">

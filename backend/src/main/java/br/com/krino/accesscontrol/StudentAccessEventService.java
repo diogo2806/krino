@@ -72,7 +72,7 @@ public class StudentAccessEventService {
         StringBuilder sql = new StringBuilder(
                 "select e.id, e.client_event_id, e.event_type, e.captured_at, e.received_at, e.captured_offline, e.source_type, "
                         + "st.id student_id, st.registration, st.name student_name, c.id class_id, c.name class_name, s.id school_id, s.name school_name, "
-                        + "exists(select 1 from student_access_notification n where n.event_id = e.id) notification_delivered "
+                        + "exists(select 1 from student_access_notification n where n.event_id = e.id) notification_available "
                         + "from student_access_event e join student st on st.id = e.student_id left join school_class c on c.id = e.class_id join school_unit s on s.id = e.school_id where 1=1");
         java.util.ArrayList<Object> params = new java.util.ArrayList<>();
         if (schoolId != null) {
@@ -110,7 +110,7 @@ public class StudentAccessEventService {
         return jdbcTemplate.queryForObject(
                 "select e.id, e.client_event_id, e.event_type, e.captured_at, e.received_at, e.captured_offline, e.source_type, "
                         + "st.id student_id, st.registration, st.name student_name, c.id class_id, c.name class_name, s.id school_id, s.name school_name, "
-                        + "exists(select 1 from student_access_notification n where n.event_id = e.id) notification_delivered "
+                        + "exists(select 1 from student_access_notification n where n.event_id = e.id) notification_available "
                         + "from student_access_event e join student st on st.id = e.student_id left join school_class c on c.id = e.class_id join school_unit s on s.id = e.school_id where e.id = ?",
                 (rs, rowNum) -> mapEventView(rs, rowNum, duplicate), id);
     }
@@ -125,7 +125,7 @@ public class StudentAccessEventService {
         return new EventView(rs.getObject("client_event_id", UUID.class), rs.getLong("student_id"), rs.getString("registration"), rs.getString("student_name"),
                 nullableClassId, rs.getString("class_name"), rs.getLong("school_id"), rs.getString("school_name"), rs.getString("event_type"),
                 rs.getObject("captured_at", OffsetDateTime.class), rs.getObject("received_at", OffsetDateTime.class), rs.getBoolean("captured_offline"),
-                rs.getString("source_type"), true, duplicate, rs.getBoolean("notification_delivered"));
+                rs.getString("source_type"), true, duplicate, rs.getBoolean("notification_available"));
     }
 
     private void validateCapturedAt(OffsetDateTime capturedAt) {
@@ -162,5 +162,5 @@ public class StudentAccessEventService {
 
     public record EventView(UUID clientEventId, Long studentId, String registration, String studentName, Long classId, String className,
                             Long schoolId, String schoolName, String eventType, OffsetDateTime capturedAt, OffsetDateTime receivedAt,
-                            boolean capturedOffline, String sourceType, boolean synchronizedEvent, boolean duplicate, boolean notificationDelivered) {}
+                            boolean capturedOffline, String sourceType, boolean synchronizedEvent, boolean duplicate, boolean notificationAvailable) {}
 }

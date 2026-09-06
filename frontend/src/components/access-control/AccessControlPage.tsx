@@ -24,7 +24,7 @@ const manualSections = [
   { title: 'Sincronização e notificações', content: 'Ao restabelecer a conexão, a fila é reenviada em ordem de captura. O backend reconhece reenvios do mesmo evento e não duplica entrada/saída. Mudanças posteriores de turma não alteram retroativamente o contexto capturado. A notificação interna ao responsável fica disponível somente quando o servidor recebe o evento e apenas uma vez.' },
   { title: 'Permissões', content: 'ACCESS_CONTROL_READ permite identificação e histórico; ACCESS_CONTROL_WRITE permite entrada, saída e sincronização; ACCESS_CARD_MANAGE permite emitir carteirinha. Todas respeitam o escopo da unidade escolar.' },
   { title: 'Fluxos', content: 'Leia ou informe o código, confira o estudante, registre Entrada/Saída e acompanhe o estado. Em modo Offline, continue as capturas conhecidas e sincronize quando o status voltar para Online.' },
-  { title: 'Mensagens e estados', content: 'Online, Offline, Aguardando sincronização e Sincronizado são exibidos de forma explícita. Falha de leitura orienta nova tentativa ou código manual. Eventos rejeitados permanecem na fila até correção ou nova tentativa.' },
+  { title: 'Mensagens e estados', content: 'Online e Offline representam a conectividade do dispositivo. Aguardando sincronização indica que o backend ainda não confirmou o evento. Falha de leitura orienta nova tentativa ou código manual; falha temporária da API mantém o evento local e permite tentar Sincronizar agora novamente.' },
 ];
 
 function formatDateTime(value: string) {
@@ -145,8 +145,7 @@ export function AccessControlPage({ context, onUnauthorized }: Props) {
         setError(exception.message); return;
       }
       setPending(enqueueEvent(storageOwner, { ...base, capturedOffline: true, identity }));
-      setOnline(false);
-      setFeedback(`${eventLabel(eventType)} preservada neste dispositivo após perda de conexão. Aguardando sincronização.`);
+      setFeedback(`${eventLabel(eventType)} preservada neste dispositivo porque o servidor não confirmou o registro. Aguardando sincronização.`);
     }
   }
 

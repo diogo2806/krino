@@ -1,7 +1,7 @@
 export type Diary = { id: number; classId: number; className: string; schoolId: number; schoolName: string; componentId?: number; componentName?: string; mode: string; responsibleProfessionalId: number; responsibleProfessionalName: string; validFrom: string; validUntil?: string; active: boolean; editable: boolean; };
 export type RosterStudent = { enrollmentId: number; studentId: number; registration: string; name: string; };
 export type Attendance = { enrollmentId: number; studentId: number; studentName: string; status: string; };
-export type Lesson = { id: number; diaryId: number; lessonDate: string; lessonSlot: number; content?: string; planningNotes?: string; createdBy: string; updatedBy: string; attendance: Attendance[]; };
+export type Lesson = { id: number; diaryId: number; lessonDate: string; lessonSlot: number; period?: number; content?: string; planningNotes?: string; createdBy: string; updatedBy: string; attendance: Attendance[]; };
 export type Grade = { enrollmentId: number; studentId: number; studentName: string; score?: number; observation?: string; };
 export type Assessment = { id: number; diaryId: number; period: number; title: string; assessmentDate: string; maxScore?: number; grades: Grade[]; };
 export type CurriculumItem = { id: number; source: string; stage: string; componentId?: number; componentName?: string; code: string; description: string; };

@@ -28,11 +28,30 @@ A matriz abaixo relaciona os grupos de requisitos do KRINO às fontes anexadas e
 | Professor por turma/componente/vigência | `teacher_assignment`, `AcademicStructureService`, `ClassAssignmentsDialog` |
 | Calendário escolar | `school_calendar_day`, `/api/secretaria/calendar`, tela Calendário escolar |
 | Horários de aula com vigência | `class_schedule`, `/api/secretaria/schedules`; valida conflitos da turma e do professor |
-| Documentos escolares | `SchoolDocumentService`, `/api/secretaria/documents/{type}`, `DocumentsPanel`; cobre os 13 tipos de emissão previstos em RF-009 a RF-021 |
+| Documentos escolares | `SchoolDocumentService`, `/api/secretaria/documents/{type}`, `DocumentsPanel`; cobre os 13 tipos de emissão previstos em RF-010 a RF-022 |
 | Resultados acadêmicos persistidos | `student_term_result`, fonte reutilizável pelo Diário de Classe para notas, faltas e aulas por período |
 | Escopo e permissões | `SCHOOL_READ`, `SCHOOL_WRITE`, `SCHOOL_DOCUMENT_READ`; `SchoolAccessService` valida Rede/unidade no backend |
 | Auditoria | alterações de cadastro, matrícula, movimentação, atribuição, calendário e horários registram eventos em `security_audit_event` |
 | Frontend | `SecretariaEscolarPage` e componentes reutilizáveis em `frontend/src/components/secretaria`; Manual da Tela no header e estilos em `frontend/src/shared/styles` |
+
+## Implementação de RF-023 a RF-033
+
+| Requisito / grupo | Implementação |
+|---|---|
+| Modalidades do Diário de Classe | `class_diary.mode` suporta Educação Infantil, Criança Alfabetizada, Anos Iniciais, Anos Finais e EJA |
+| Diário por turma/componente | `class_diary`, `DiaryService` e `/api/diaries`; Anos Finais e EJA exigem componente curricular |
+| Professor responsável | `class_diary.responsible_professional_id`; `professional_user_account` vincula a conta de login ao profissional da educação |
+| Autorização docente | `DiaryAccessService#requireEdit` permite edição ao professor responsável com `DIARY_EDIT`; `DIARY_ADMIN` permite administração autorizada |
+| Frequência e conteúdo | `diary_lesson`, `diary_attendance`, `/api/diaries/{id}/lessons`; `LessonEditor` apresenta frequência, conteúdo e observações pedagógicas |
+| Dia letivo | `DiaryService#validateTeachingDate` consulta `school_calendar_day` e bloqueia lançamento fora de dia letivo no backend |
+| Horário de Anos Finais/EJA | `DiaryService#validateTeachingDate` consulta `class_schedule` por turma, componente, dia da semana e vigência antes do lançamento |
+| Atribuição vigente | o lançamento também exige `teacher_assignment` vigente para professor, turma e componente aplicável |
+| Avaliações e notas | `diary_assessment`, `diary_assessment_grade`, `DiaryEvaluationService` e `AssessmentPanel` |
+| Planejamento pedagógico | `diary_planning`, `diary_planning_curriculum`, `PlanningPanel` |
+| Currículo aplicável | `curriculum_item` e `CurriculumPanel`; nenhum conteúdo BNCC/Currículo de Pernambuco é inventado ou pré-carregado, sendo aceitas referências cadastradas a partir de conteúdo validado pela Administração |
+| Permissões | `DIARY_READ`, `DIARY_EDIT`, `DIARY_ADMIN` e `CURRICULUM_MANAGE`, aplicadas por Rede/unidade no backend e refletidas no frontend |
+| Auditoria | criação de diário, aulas, avaliações/notas, planejamento, currículo e vínculo conta-profissional geram eventos em `security_audit_event` |
+| Frontend | `DiaryPage` e componentes de `frontend/src/components/diario`; Manual da Tela no header e estilos em `frontend/src/shared/styles/diary.css` com entrada única por `index.css` |
 
 ## Implementação de RF-087 a RF-089
 

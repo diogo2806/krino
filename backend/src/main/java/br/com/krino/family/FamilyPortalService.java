@@ -1,7 +1,6 @@
 package br.com.krino.family;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -43,6 +42,7 @@ public class FamilyPortalService {
 
     public ReportCardView reportCard(long studentId, int academicYear, int period, Authentication authentication) {
         accessService.requireLinkedStudent(studentId, authentication);
+        validateAcademicYear(academicYear);
         validatePeriod(period);
         List<ComponentResultView> components = jdbcTemplate.query(
                 "select cc.id component_id, cc.name component_name, r.grade, r.absences, r.classes_count "
@@ -62,7 +62,7 @@ public class FamilyPortalService {
         int totalClasses = components.stream().mapToInt(ComponentResultView::classesCount).sum();
         int totalAbsences = components.stream().mapToInt(ComponentResultView::absences).sum();
         return new ReportCardView(studentId, academicYear, period, components, assessments, totalClasses, totalAbsences,
-                attendancePercent(totalClasses, totalAbsences));
+                FamilyAttendanceCalculator.percentage(totalClasses, totalAbsences));
     }
 
     public List<AccessNotificationView> notifications(long studentId, Authentication authentication) {
@@ -162,14 +162,11 @@ public class FamilyPortalService {
     }
 
     private ComponentResultView componentResult(long id, String name, BigDecimal grade, int absences, int classesCount) {
-        return new ComponentResultView(id, name, grade, absences, classesCount, attendancePercent(classesCount, absences));
+        return new ComponentResultView(id, name, grade, absences, classesCount, FamilyAttendanceCalculator.percentage(classesCount, absences));
     }
 
-    private BigDecimal attendancePercent(int classesCount, int absences) {
-        if (classesCount <= 0) return null;
-        int attended = Math.max(0, classesCount - absences);
-        return BigDecimal.valueOf(attended).multiply(BigDecimal.valueOf(100))
-                .divide(BigDecimal.valueOf(classesCount), 2, RoundingMode.HALF_UP);
+    private void validateAcademicYear(int academicYear) {
+        if (academicYear < 2000 || academicYear > 2200) throw new IllegalArgumentException("Informe um ano letivo válido.");
     }
 
     private void validatePeriod(int period) {

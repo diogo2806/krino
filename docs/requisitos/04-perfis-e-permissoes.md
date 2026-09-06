@@ -64,9 +64,27 @@ A escola usa permissões separadas do acesso do responsável:
 
 Uma conversa só pode ser iniciada com conta ativa que mantenha vínculo `STUDENT` e perfil atual com `STUDENT_LINKED_READ`. A tela **Comunicação com Famílias** não cria ou altera vínculo legal; essa responsabilidade permanece na Administração.
 
+### Transporte universitário
+
+O módulo utiliza permissões separadas entre o estudante e a equipe da SEDUC:
+
+- `TRANSPORT_REQUEST_READ`: consulta somente as próprias solicitações, histórico, documentos protegidos e carteirinha;
+- `TRANSPORT_REQUEST_WRITE`: cria, corrige, envia documentos e submete somente a própria solicitação;
+- `TRANSPORT_REVIEW_READ`: consulta a fila de solicitações e documentos para análise;
+- `TRANSPORT_REVIEW_WRITE`: inicia a análise e registra aprovação, solicitação de ajuste ou negativa;
+- `TRANSPORT_CARD_ART_WRITE`: parametriza e aprova a arte ativa da carteirinha.
+
+O perfil-base **Estudante do transporte** recebe `TRANSPORT_REQUEST_READ` e `TRANSPORT_REQUEST_WRITE`. A propriedade da solicitação é validada pelo `applicant_user_id` no backend em todas as operações do estudante; conhecer um identificador de outra solicitação não concede acesso.
+
+O perfil-base **SME / Técnico da Secretaria** recebe as permissões de análise e configuração da arte. **Coordenação da SME** recebe consulta da fila. O **Administrador do sistema** recebe todas as permissões do domínio. Como os perfis continuam configuráveis, a Administração pode ajustar os vínculos pelas funcionalidades de perfis sem alterar a regra de autorização do backend.
+
+Foto e comprovante de matrícula permanecem em endpoint autenticado. O frontend carrega esses arquivos com o token da sessão; não existe URL pública de documento. Negativa e solicitação de ajuste exigem motivo, e a emissão da carteirinha depende de solicitação aprovada, validade vigente e arte aprovada pela SEDUC.
+
 ### Operações administrativas
 
 São auditadas na tabela `security_audit_event`, no mínimo: criação/alteração/desativação de usuário, redefinição de senha por administrador, atribuição/remoção de perfil, criação/alteração/exclusão de perfil, alteração das permissões de um perfil e vínculo/desvínculo de responsável com estudante. Senhas e tokens não são registrados no evento.
+
+No Transporte Universitário também são auditadas criação e alteração da solicitação, atualização de documentos, submissão, mudanças de estado e atualização/aprovação da arte da carteirinha. O conteúdo binário dos documentos não é copiado para a trilha de auditoria.
 
 O primeiro administrador pode ser criado somente quando a base não possui usuários, por `BOOTSTRAP_ADMIN_USERNAME` e `BOOTSTRAP_ADMIN_PASSWORD`. Não existe credencial administrativa padrão versionada.
 
@@ -75,5 +93,7 @@ O primeiro administrador pode ser criado somente quando a base não possui usuá
 A tela **Usuários e acessos** consulta o contexto efetivo de permissões municipais antes de apresentar seções e ações. O botão **Vincular estudantes** aparece somente quando a conta selecionada possui perfil com `STUDENT_LINKED_READ` e o operador possui `SCOPE_ASSIGN`.
 
 O **Portal do Responsável** aparece para contas com `STUDENT_LINKED_READ`; o conteúdo de cada estudante continua condicionado ao vínculo individual validado no backend. A tela **Comunicação com Famílias** aparece conforme `FAMILY_COMMUNICATION_READ`/`FAMILY_COMMUNICATION_WRITE` no escopo autorizado.
+
+O **Transporte Universitário** aparece quando a conta possui alguma permissão `TRANSPORT_*`. Para estudantes, a tela apresenta somente o fluxo próprio. Para a SEDUC, apresenta a fila, decisões e, quando autorizado, a configuração da arte. O Manual da Tela permanece no header por meio do componente compartilhado `PageHeader`/`ScreenManual`.
 
 Usuários sem autorização recebem estado explícito “Acesso não permitido”. O frontend reduz ações disponíveis, mas o backend continua autorizando cada endpoint protegido.

@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/access-control")
 public class StudentAccessControlController {
 
+    private static final int MAX_SYNC_BATCH = 5000;
+
     private final StudentAccessCredentialService credentialService;
     private final StudentAccessEventService eventService;
     private final Validator validator;
@@ -49,7 +51,7 @@ public class StudentAccessControlController {
     @PostMapping("/sync")
     public List<SyncResult> sync(@RequestBody List<StudentAccessEventService.EventRequest> requests, Authentication authentication) {
         if (requests == null || requests.isEmpty()) return List.of();
-        if (requests.size() > 500) throw new IllegalArgumentException("Sincronize no máximo 500 eventos por lote.");
+        if (requests.size() > MAX_SYNC_BATCH) throw new IllegalArgumentException("Sincronize no máximo " + MAX_SYNC_BATCH + " eventos por lote.");
         List<SyncResult> results = new ArrayList<>();
         for (StudentAccessEventService.EventRequest request : requests) {
             UUID clientEventId = request == null ? null : request.clientEventId();
@@ -59,8 +61,7 @@ public class StudentAccessControlController {
             }
             var violations = validator.validate(request);
             if (!violations.isEmpty()) {
-                String message = violations.iterator().next().getMessage();
-                results.add(new SyncResult(clientEventId, false, false, message, null));
+                results.add(new SyncResult(clientEventId, false, false, violations.iterator().next().getMessage(), null));
                 continue;
             }
             try {

@@ -5,7 +5,6 @@ import java.math.RoundingMode;
 import java.time.OffsetDateTime;
 import java.util.List;
 
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -30,6 +29,7 @@ public class FamilyPortalService {
     }
 
     public List<LinkedStudentView> students(Authentication authentication) {
+        accessService.requirePortalPermission(authentication);
         long userId = accessService.userId(authentication);
         return jdbcTemplate.query(
                 "select st.id, st.registration, st.name, e.academic_year, c.id class_id, c.name class_name, s.id school_id, s.name school_name "

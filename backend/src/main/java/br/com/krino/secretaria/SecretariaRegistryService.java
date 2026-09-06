@@ -2,7 +2,6 @@ package br.com.krino.secretaria;
 
 import java.sql.Date;
 import java.sql.PreparedStatement;
-import java.sql.Statement;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
@@ -51,30 +50,33 @@ public class SecretariaRegistryService {
     @Transactional
     public SchoolView updateSchool(long id, SchoolRequest request, Authentication authentication) {
         accessService.requireWrite(authentication, id);
-        int updated = jdbcTemplate.update("update school_unit set code = ?, name = ?, address = ?, updated_at = current_timestamp where id = ?", request.code().trim(), request.name().trim(), request.address(), id);
+        SchoolView current = getSchool(id);
+        String nextCode = request.code().trim();
+        int updated = jdbcTemplate.update("update school_unit set code = ?, name = ?, address = ?, updated_at = current_timestamp where id = ?", nextCode, request.name().trim(), request.address(), id);
         if (updated == 0) throw new IllegalArgumentException("Unidade escolar não encontrada.");
-        auditService.record(authentication.getName(), "SCHOOL_UPDATED", "SCHOOL", Long.toString(id), request.code().trim());
+        if (!current.code().equals(nextCode)) {
+            jdbcTemplate.update("update user_role_assignment set scope_reference = ? where scope_type = 'SCHOOL' and scope_reference = ?", nextCode, current.code());
+        }
+        auditService.record(authentication.getName(), "SCHOOL_UPDATED", "SCHOOL", Long.toString(id), nextCode);
         return getSchool(id);
     }
 
-    public List<StudentView> listStudents(Long schoolId, Integer year, String search, Authentication authentication) {
+    public List<StudentView> listStudents(Long schoolId, int year, String search, Authentication authentication) {
         accessService.requireRead(authentication, schoolId);
         String term = search == null ? "" : search.trim().toLowerCase();
         if (schoolId == null) {
             return jdbcTemplate.query(
                     "select distinct s.id, s.registration, s.name, s.birth_date, s.guardian_name, s.guardian_profession, s.status "
-                            + "from student s left join student_enrollment e on e.student_id = s.id "
-                            + "where (? = '' or lower(s.name) like ? or lower(s.registration) like ?) "
-                            + "and (? is null or e.academic_year = ?) order by s.name",
-                    this::mapStudent, term, "%" + term + "%", "%" + term + "%", year, year);
+                            + "from student s left join student_enrollment e on e.student_id = s.id and e.academic_year = ? "
+                            + "where (? = '' or lower(s.name) like ? or lower(s.registration) like ?) order by s.name",
+                    this::mapStudent, year, term, "%" + term + "%", "%" + term + "%");
         }
         return jdbcTemplate.query(
                 "select distinct s.id, s.registration, s.name, s.birth_date, s.guardian_name, s.guardian_profession, s.status "
-                        + "from student s left join student_enrollment e on e.student_id = s.id left join school_class c on c.id = e.class_id "
+                        + "from student s left join student_enrollment e on e.student_id = s.id and e.academic_year = ? left join school_class c on c.id = e.class_id "
                         + "where (s.origin_school_id = ? or c.school_id = ?) "
-                        + "and (? = '' or lower(s.name) like ? or lower(s.registration) like ?) "
-                        + "and (? is null or e.academic_year = ? or e.id is null) order by s.name",
-                this::mapStudent, schoolId, schoolId, term, "%" + term + "%", "%" + term + "%", year, year);
+                        + "and (? = '' or lower(s.name) like ? or lower(s.registration) like ?) order by s.name",
+                this::mapStudent, year, schoolId, schoolId, term, "%" + term + "%", "%" + term + "%");
     }
 
     @Transactional
@@ -192,7 +194,8 @@ public class SecretariaRegistryService {
 
     private ProfessionalView mapProfessional(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
         long schoolId = rs.getLong("origin_school_id");
-        return new ProfessionalView(rs.getLong("id"), schoolId == 0 && rs.wasNull() ? null : schoolId, rs.getString("registration"), rs.getString("name"), rs.getString("professional_type"), rs.getBoolean("active"));
+        boolean schoolIdWasNull = rs.wasNull();
+        return new ProfessionalView(rs.getLong("id"), schoolIdWasNull ? null : schoolId, rs.getString("registration"), rs.getString("name"), rs.getString("professional_type"), rs.getBoolean("active"));
     }
 
     private ClassView mapClass(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
@@ -202,7 +205,7 @@ public class SecretariaRegistryService {
     private long insertReturningId(String sql, Object... values) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
-            PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            PreparedStatement statement = connection.prepareStatement(sql, new String[]{"id"});
             for (int index = 0; index < values.length; index++) {
                 Object value = values[index];
                 if (value instanceof LocalDate localDate) statement.setDate(index + 1, Date.valueOf(localDate));

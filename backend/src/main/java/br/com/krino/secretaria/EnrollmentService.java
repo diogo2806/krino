@@ -2,7 +2,6 @@ package br.com.krino.secretaria;
 
 import java.sql.Date;
 import java.sql.PreparedStatement;
-import java.sql.Statement;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
@@ -53,7 +52,14 @@ public class EnrollmentService {
 
         String type = request.enrollmentType().trim().toUpperCase();
         if (!(type.equals("ENROLLMENT") || type.equals("REENROLLMENT"))) throw new IllegalArgumentException("Tipo de matrícula inválido.");
-        long id = insertEnrollment(request.studentId(), request.classId(), classView.academicYear(), type, request.enrollmentDate(), null);
+        Long previousId = null;
+        if (type.equals("REENROLLMENT")) {
+            List<Long> previousIds = jdbcTemplate.query(
+                    "select id from student_enrollment where student_id = ? and academic_year < ? order by academic_year desc, id desc limit 1",
+                    (rs, rowNum) -> rs.getLong("id"), request.studentId(), classView.academicYear());
+            previousId = previousIds.isEmpty() ? null : previousIds.getFirst();
+        }
+        long id = insertEnrollment(request.studentId(), request.classId(), classView.academicYear(), type, request.enrollmentDate(), previousId);
         auditService.record(authentication.getName(), "ENROLLMENT_CREATED", "ENROLLMENT", Long.toString(id), student.registration() + " / " + classView.name());
         return get(id);
     }
@@ -112,7 +118,7 @@ public class EnrollmentService {
     private long insertEnrollment(long studentId, long classId, int academicYear, String type, LocalDate date, Long previousId) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
-            PreparedStatement statement = connection.prepareStatement("insert into student_enrollment (student_id, class_id, academic_year, enrollment_type, enrollment_date, status, previous_enrollment_id) values (?, ?, ?, ?, ?, 'ACTIVE', ?)", Statement.RETURN_GENERATED_KEYS);
+            PreparedStatement statement = connection.prepareStatement("insert into student_enrollment (student_id, class_id, academic_year, enrollment_type, enrollment_date, status, previous_enrollment_id) values (?, ?, ?, ?, ?, 'ACTIVE', ?)", new String[]{"id"});
             statement.setLong(1, studentId); statement.setLong(2, classId); statement.setInt(3, academicYear); statement.setString(4, type); statement.setDate(5, Date.valueOf(date)); statement.setObject(6, previousId); return statement;
         }, keyHolder);
         return Objects.requireNonNull(keyHolder.getKey()).longValue();
@@ -121,7 +127,7 @@ public class EnrollmentService {
     private long insertMovement(long enrollmentId, String type, LocalDate date, Long destinationClassId, String notes, String actor) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
-            PreparedStatement statement = connection.prepareStatement("insert into student_movement (enrollment_id, movement_type, effective_date, destination_class_id, notes, created_by) values (?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS);
+            PreparedStatement statement = connection.prepareStatement("insert into student_movement (enrollment_id, movement_type, effective_date, destination_class_id, notes, created_by) values (?, ?, ?, ?, ?, ?)", new String[]{"id"});
             statement.setLong(1, enrollmentId); statement.setString(2, type); statement.setDate(3, Date.valueOf(date)); statement.setObject(4, destinationClassId); statement.setString(5, notes); statement.setString(6, actor); return statement;
         }, keyHolder);
         return Objects.requireNonNull(keyHolder.getKey()).longValue();

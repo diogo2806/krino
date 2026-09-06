@@ -46,10 +46,12 @@ public class FamilyPortalService {
         validateAcademicYear(academicYear);
         validatePeriod(period);
         List<ComponentResultView> components = jdbcTemplate.query(
-                "select cc.id component_id, cc.name component_name, r.grade, r.absences, r.classes_count "
-                        + "from student_term_result r join student_enrollment e on e.id = r.enrollment_id "
-                        + "join curricular_component cc on cc.id = r.component_id "
-                        + "where e.student_id = ? and e.academic_year = ? and r.period = ? order by cc.name",
+                "select component_id, component_name, grade, absences, classes_count from ("
+                        + "select distinct on (r.component_id) r.component_id, cc.name component_name, r.grade, r.absences, r.classes_count, e.enrollment_date, e.id enrollment_id "
+                        + "from student_term_result r join student_enrollment e on e.id = r.enrollment_id join curricular_component cc on cc.id = r.component_id "
+                        + "where e.student_id = ? and e.academic_year = ? and r.period = ? "
+                        + "order by r.component_id, e.enrollment_date desc, e.id desc"
+                        + ") current_result order by component_name",
                 (rs, rowNum) -> componentResult(rs.getLong("component_id"), rs.getString("component_name"), rs.getBigDecimal("grade"), rs.getInt("absences"), rs.getInt("classes_count")),
                 studentId, academicYear, period);
         List<AssessmentView> assessments = jdbcTemplate.query(

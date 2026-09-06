@@ -40,7 +40,8 @@
   .student-access-card__body { grid-template-columns: 1fr; justify-items: center; text-align: center; }
 }
 @media print {
-  body * { visibility: hidden; }
-  .student-access-card, .student-access-card * { visibility: visible; }
-  .student-access-card { position: fixed; inset: 20mm auto auto 20mm; width: 150mm; box-shadow: none; }
+  body:has(dialog[open] .student-access-card) * { visibility: hidden; }
+  body:has(dialog[open] .student-access-card) .student-access-card,
+  body:has(dialog[open] .student-access-card) .student-access-card * { visibility: visible; }
+  body:has(dialog[open] .student-access-card) .student-access-card { position: fixed; inset: 20mm auto auto 20mm; width: 150mm; box-shadow: none; }
 }

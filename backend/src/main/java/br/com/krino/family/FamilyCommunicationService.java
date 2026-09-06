@@ -54,8 +54,10 @@ public class FamilyCommunicationService {
         StudentSchool student = currentStudentSchool(studentId);
         accessService.requireSchoolRead(student.schoolId(), authentication);
         return jdbcTemplate.query(
-                "select u.id, u.display_name, u.username from linked_resource_access lra join app_user u on u.id = lra.user_id "
-                        + "where lra.resource_type = 'STUDENT' and lra.resource_reference = ? and lra.access_level in ('READ', 'EDIT') and u.active = true order by u.display_name",
+                "select distinct u.id, u.display_name, u.username from linked_resource_access lra join app_user u on u.id = lra.user_id "
+                        + "where lra.resource_type = 'STUDENT' and lra.resource_reference = ? and lra.access_level in ('READ', 'EDIT') and u.active = true "
+                        + "and exists (select 1 from user_role_assignment ura join access_role_permission rp on rp.role_id = ura.role_id "
+                        + "join access_permission p on p.id = rp.permission_id where ura.user_id = u.id and p.code = 'STUDENT_LINKED_READ') order by u.display_name",
                 (rs, rowNum) -> new GuardianOption(rs.getLong("id"), rs.getString("display_name"), rs.getString("username")), Long.toString(studentId));
     }
 
@@ -181,9 +183,12 @@ public class FamilyCommunicationService {
 
     private void requireGuardianLink(long guardianUserId, long studentId) {
         Integer count = jdbcTemplate.queryForObject(
-                "select count(*) from linked_resource_access where user_id = ? and resource_type = 'STUDENT' and resource_reference = ? and access_level in ('READ', 'EDIT')",
+                "select count(*) from linked_resource_access lra join app_user u on u.id = lra.user_id and u.active = true "
+                        + "where lra.user_id = ? and lra.resource_type = 'STUDENT' and lra.resource_reference = ? and lra.access_level in ('READ', 'EDIT') "
+                        + "and exists (select 1 from user_role_assignment ura join access_role_permission rp on rp.role_id = ura.role_id "
+                        + "join access_permission p on p.id = rp.permission_id where ura.user_id = lra.user_id and p.code = 'STUDENT_LINKED_READ')",
                 Integer.class, guardianUserId, Long.toString(studentId));
-        if (count == null || count == 0) throw new IllegalArgumentException("O responsável selecionado não possui vínculo autorizado com este estudante.");
+        if (count == null || count == 0) throw new IllegalArgumentException("O responsável selecionado não possui vínculo autorizado ativo com este estudante.");
     }
 
     private void requireClassSchool(long classId, long schoolId) {

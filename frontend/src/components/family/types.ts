@@ -1,0 +1,12 @@
+export type LinkedStudent = { id: number; registration: string; name: string; academicYear?: number; classId?: number; className?: string; schoolId?: number; schoolName?: string; };
+export type ComponentResult = { componentId: number; componentName: string; grade?: number | null; absences: number; classesCount: number; attendancePercent?: number | null; };
+export type Assessment = { componentName: string; title: string; assessmentDate: string; score?: number | null; maxScore?: number | null; observation?: string; };
+export type ReportCard = { studentId: number; academicYear: number; period: number; components: ComponentResult[]; assessments: Assessment[]; totalClasses: number; totalAbsences: number; attendancePercent?: number | null; };
+export type AccessNotification = { id: number; eventType: 'ENTRY' | 'EXIT'; capturedAt: string; message: string; availableAt: string; };
+export type Announcement = { id: number; audienceType: 'SCHOOL' | 'CLASS' | 'STUDENT'; title: string; body: string; schoolName?: string; className?: string; studentName?: string; active?: boolean; publishedAt: string; };
+export type Conversation = { id: number; studentId?: number; studentName?: string; guardianName?: string; subject: string; status: 'OPEN' | 'CLOSED'; schoolName?: string; lastMessage?: string; updatedAt: string; };
+export type Message = { id: number; senderType: 'GUARDIAN' | 'STAFF'; senderName: string; body: string; createdAt: string; };
+export type FamilySchool = { id: number; code: string; name: string; };
+export type FamilyClass = { id: number; name: string; academicYear: number; };
+export type FamilyStudentOption = { id: number; registration: string; name: string; classId: number; className: string; };
+export type GuardianOption = { id: number; displayName: string; username: string; };

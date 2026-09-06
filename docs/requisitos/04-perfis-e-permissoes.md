@@ -46,19 +46,34 @@ O backend expõe verificadores específicos de escopo e não considera a oculta�
 
 ### Vínculos especiais
 
-A tabela `linked_resource_access` guarda vínculos condicionais que serão utilizados pelos domínios funcionais:
+A tabela `linked_resource_access` guarda vínculos condicionais usados pelos domínios funcionais:
 
-- `STUDENT` + `READ`: permite ao responsável consultar apenas estudante legalmente vinculado, em conjunto com `STUDENT_LINKED_READ`.
-- `DIARY` + `EDIT`: permite ao professor editar apenas diário sob sua responsabilidade, em conjunto com `DIARY_ASSIGNED_EDIT`.
+- `STUDENT` + `READ`: permite ao responsável consultar somente estudante legalmente vinculado, em conjunto com a permissão `STUDENT_LINKED_READ`;
+- `DIARY` + `EDIT`: permite ao professor editar somente diário sob sua responsabilidade, em conjunto com `DIARY_ASSIGNED_EDIT`.
 
-Os módulos de Secretaria Escolar e Diário de Classe devem criar/remover esses vínculos conforme seus próprios fluxos, sem duplicar a regra de autorização.
+O vínculo responsável-estudante é implementado na Administração em **Usuários e acessos > Vincular estudantes**. A operação exige `SCOPE_ASSIGN`, conta ativa e um perfil atualmente atribuído que contenha `STUDENT_LINKED_READ`. Perfil e vínculo individual são independentes: possuir o perfil sem vínculo não concede acesso a estudante; manter um vínculo depois de remover o perfil também não concede acesso.
+
+O backend revalida `STUDENT_LINKED_READ` e `linked_resource_access` em todas as consultas, notificações e mensagens do Portal do Responsável. Remover o vínculo ou a permissão impede novas consultas sem apagar histórico já persistido.
+
+### Comunicação com famílias
+
+A escola usa permissões separadas do acesso do responsável:
+
+- `FAMILY_COMMUNICATION_READ`: consulta conversas e comunicados da unidade autorizada;
+- `FAMILY_COMMUNICATION_WRITE`: inicia/responde conversas, publica e desativa comunicados no escopo autorizado.
+
+Uma conversa só pode ser iniciada com conta ativa que mantenha vínculo `STUDENT` e perfil atual com `STUDENT_LINKED_READ`. A tela **Comunicação com Famílias** não cria ou altera vínculo legal; essa responsabilidade permanece na Administração.
 
 ### Operações administrativas
 
-São auditadas na tabela `security_audit_event`, no mínimo: criação/alteração/desativação de usuário, redefinição de senha por administrador, atribuição/remoção de perfil, criação/alteração/exclusão de perfil e alteração das permissões de um perfil. Senhas e tokens não são registrados no evento.
+São auditadas na tabela `security_audit_event`, no mínimo: criação/alteração/desativação de usuário, redefinição de senha por administrador, atribuição/remoção de perfil, criação/alteração/exclusão de perfil, alteração das permissões de um perfil e vínculo/desvínculo de responsável com estudante. Senhas e tokens não são registrados no evento.
 
 O primeiro administrador pode ser criado somente quando a base não possui usuários, por `BOOTSTRAP_ADMIN_USERNAME` e `BOOTSTRAP_ADMIN_PASSWORD`. Não existe credencial administrativa padrão versionada.
 
 ### Interface
 
-A tela **Usuários e acessos** consulta o contexto efetivo de permissões municipais antes de apresentar seções e ações. Usuários sem autorização administrativa recebem o estado “Acesso não permitido”. O frontend reduz ações disponíveis, mas o backend continua autorizando cada endpoint protegido.
+A tela **Usuários e acessos** consulta o contexto efetivo de permissões municipais antes de apresentar seções e ações. O botão **Vincular estudantes** aparece somente quando a conta selecionada possui perfil com `STUDENT_LINKED_READ` e o operador possui `SCOPE_ASSIGN`.
+
+O **Portal do Responsável** aparece para contas com `STUDENT_LINKED_READ`; o conteúdo de cada estudante continua condicionado ao vínculo individual validado no backend. A tela **Comunicação com Famílias** aparece conforme `FAMILY_COMMUNICATION_READ`/`FAMILY_COMMUNICATION_WRITE` no escopo autorizado.
+
+Usuários sem autorização recebem estado explícito “Acesso não permitido”. O frontend reduz ações disponíveis, mas o backend continua autorizando cada endpoint protegido.

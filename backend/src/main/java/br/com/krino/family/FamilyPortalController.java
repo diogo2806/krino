@@ -17,9 +17,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class FamilyPortalController {
 
     private final FamilyPortalService service;
+    private final FamilyAttendanceService attendanceService;
 
-    public FamilyPortalController(FamilyPortalService service) {
+    public FamilyPortalController(FamilyPortalService service, FamilyAttendanceService attendanceService) {
         this.service = service;
+        this.attendanceService = attendanceService;
     }
 
     @GetMapping("/students")
@@ -31,6 +33,12 @@ public class FamilyPortalController {
     public FamilyPortalService.ReportCardView reportCard(@PathVariable long studentId, @RequestParam int year,
             @RequestParam int period, Authentication authentication) {
         return service.reportCard(studentId, year, period, authentication);
+    }
+
+    @GetMapping("/students/{studentId}/attendance")
+    public FamilyAttendanceService.AttendanceSummary attendance(@PathVariable long studentId, @RequestParam int year,
+            @RequestParam int period, Authentication authentication) {
+        return attendanceService.attendance(studentId, year, period, authentication);
     }
 
     @GetMapping("/students/{studentId}/notifications")

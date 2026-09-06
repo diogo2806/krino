@@ -1,0 +1,9 @@
+.modal { width: min(720px, calc(100% - 32px)); max-height: 86vh; padding: 0; border: 0; border-radius: var(--radius-lg); box-shadow: var(--shadow-modal); color: var(--color-text); }
+.modal::backdrop { background: rgba(23, 32, 51, .5); }
+.modal__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 24px; border-bottom: 1px solid var(--color-border); }
+.modal__header h2 { margin: 0; }
+.modal__content { padding: 20px 24px; overflow: auto; }
+.modal__footer { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 24px; border-top: 1px solid var(--color-border); background: #fafbfc; }
+.manual-content { display: grid; gap: 20px; }
+.manual-content section h3 { margin-bottom: 6px; }
+.manual-content section p { margin-bottom: 0; color: var(--color-muted); line-height: 1.55; }

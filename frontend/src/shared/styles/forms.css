@@ -1,0 +1,17 @@
+.form-stack { display: grid; gap: 16px; }
+.field { display: grid; gap: 6px; min-width: 0; }
+.field__label { font-weight: 650; }
+.field__hint { color: var(--color-muted); font-size: .875rem; }
+.input, .select, .textarea { width: 100%; border: 1px solid #bcc7da; border-radius: 10px; background: var(--color-surface); color: var(--color-text); padding: 10px 12px; }
+.input, .select { min-height: 42px; }
+.input:focus, .select:focus, .textarea:focus { outline: 2px solid #b8c9ec; border-color: var(--color-primary); }
+.textarea { resize: vertical; }
+.password-field { position: relative; }
+.password-field .input { padding-right: 52px; }
+.check-field { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+.check-field input { margin-top: 3px; }
+.check-field span { display: grid; gap: 2px; }
+.check-field small { margin: 0; }
+.permission-list { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.permission-list legend { padding: 0 6px; font-weight: 700; }
+.form-error { margin: 0; color: var(--color-danger); }

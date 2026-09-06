@@ -1,0 +1,12 @@
+.button, .icon-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; border-radius: 10px; cursor: pointer; font-weight: 650; transition: border-color .15s ease, background .15s ease; }
+.button { padding: 8px 14px; border: 1px solid var(--color-border); }
+.button:disabled { cursor: not-allowed; opacity: .6; }
+.button--primary { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.button--secondary { background: var(--color-surface); color: var(--color-text); }
+.button--ghost { background: transparent; border-color: transparent; color: var(--color-primary); }
+.button--danger { background: var(--color-danger-soft); border-color: #f0b8b3; color: var(--color-danger); }
+.button:hover:not(:disabled), .icon-button:hover { filter: brightness(.97); }
+.button:focus-visible, .icon-button:focus-visible, .segmented__item:focus-visible, .password-field__toggle:focus-visible { outline: 2px solid #b8c9ec; outline-offset: 2px; }
+.icon-button { padding: 8px 12px; border: 1px solid #bcc7da; background: var(--color-surface); }
+.icon-button--only { width: 40px; padding: 8px; }
+.password-field__toggle { position: absolute; right: 8px; bottom: 5px; display: grid; place-items: center; width: 40px; height: 40px; border: 0; background: transparent; cursor: pointer; border-radius: var(--radius-sm); }

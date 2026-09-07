@@ -116,7 +116,52 @@ Habilidade 1: 5 acertos / 5 questões = 100,00%
 Habilidade 2: 2 acertos / 5 questões = 40,00%
 ```
 
-Os relatórios pedagógicos, gráficos e dashboards especializados dos itens 37 e 38 usam estes dados como fonte, mas sua apresentação completa permanece no escopo da issue de relatórios e indicadores.
+Os relatórios pedagógicos, gráficos e dashboards especializados dos itens 37 e 38 usam estes dados como fonte.
+
+## Implementação de suporte e manutenção
+
+Os itens complementares 51 e 52 usam o canal interno **Suporte e Chamados** e a arquitetura de atualização em containers já adotada pelo projeto.
+
+```text
++--------------------------------------------------------------------------------+
+| Suporte e Chamados                                      [Manual da Tela]       |
++--------------------------------------------------------------------------------+
+| [Novo chamado]                                                                 |
+| Buscar [________________] Status [Todos v] Criticidade [Todas v] [Aplicar]     |
++--------------------------------------------------------------------------------+
+| # | Assunto | Criticidade | Status | Prazos de referência | Aberto em | Ação   |
+|   |         |             |        |                      |           | [Ver]  |
++--------------------------------------------------------------------------------+
+| Gestão municipal: [Abertos] [Aguardando solicitante] [Críticos ativos]        |
++--------------------------------------------------------------------------------+
+```
+
+Fluxo de atendimento demonstrável:
+
+```text
+Solicitante                  Equipe de suporte
+    |                              |
+    |-- Novo chamado ------------->|
+    |                              |-- classifica / atende
+    |<---------- mensagem ---------|
+    |-- interação ---------------->|
+    |                              |-- registra solução
+    |<-------- Resolvido ----------|
+    |                              |-- Encerrado (somente leitura)
+```
+
+Regras demonstráveis:
+
+- criticidades Crítico, Médio e Baixo com referências documentais de 1h/4h, 4h/24h e 24h/72h para resposta/solução;
+- a tela não afirma que um chamado está “em risco” ou “vencido”, pois o TR não define se a contagem usa horas úteis ou corridas;
+- `first_support_response_at` é registrado apenas quando a equipe envia a primeira interação ao solicitante;
+- status, criticidade, mensagens e atualizações da solução ficam em histórico cronológico;
+- chamado Resolvido ou Encerrado exige solução; chamado Encerrado fica somente para consulta;
+- solicitante acessa apenas seus próprios chamados; gestão municipal exige `SUPPORT_TICKET_MANAGE`;
+- operações relevantes também são registradas em `security_audit_event`;
+- o Manual da Tela explica finalidade, campos, filtros, ações, regras, permissões, fluxo e estados;
+- manutenção de versão não é implementada como autoatualizador da aplicação: backend e frontend continuam sendo atualizados pelos containers Docker/EasyPanel previstos na arquitetura do projeto;
+- migrations Flyway são aditivas e o histórico de chamados não é apagado por atualização de versão.
 
 ## Cenário de demonstração recomendado
 
@@ -131,7 +176,8 @@ Usar exclusivamente dados fictícios e preparar um roteiro executável que demon
 7. solicitar, analisar e aprovar transporte; emitir carteirinha;
 8. cadastrar avaliação, vincular estudantes, importar/processar gabarito e consolidar resultados;
 9. visualizar resultados nos quatro níveis exigidos;
-10. demonstrar relatório, dashboard, logs, backup/recuperação e exportação aberta.
+10. demonstrar relatório, dashboard, logs, backup/recuperação e exportação aberta;
+11. abrir chamado, responder como gestão municipal, alterar criticidade/status, registrar solução e consultar o histórico preservado.
 
 ## Restrição da POC
 

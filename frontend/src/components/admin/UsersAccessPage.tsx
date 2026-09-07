@@ -1,4 +1,4 @@
-import { KeyRound, Link2, LogOut, Plus, Shield, UserCog } from 'lucide-react';
+import { KeyRound, Link2, Plus, Shield, UserCog } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, apiRequest } from '../../shared/api/client';
 import { Button } from '../button/Button';
@@ -96,7 +96,7 @@ export function UsersAccessPage({ onLogout }: UsersAccessPageProps) {
   const canAssignScope = has('SCOPE_ASSIGN') && canReadRoles;
 
   return <main className="app-page">
-    <PageHeader eyebrow="Administração" title="Usuários e acessos" description="Contas, perfis, permissões, escopos e vínculos autorizados." manualSections={manualSections} actions={<Button type="button" variant="ghost" onClick={onLogout}><LogOut aria-hidden="true" size={18} />Sair</Button>} />
+    <PageHeader eyebrow="Administração" title="Usuários e acessos" description="Contas, perfis, permissões, escopos e vínculos autorizados." manualSections={manualSections} />
 
     {!loading && !denied ? <nav className="segmented" aria-label="Seções de usuários e acessos">{canReadUsers ? <button className={view === 'users' ? 'segmented__item segmented__item--active' : 'segmented__item'} type="button" onClick={() => setView('users')}>Usuários</button> : null}{canReadRoles ? <button className={view === 'roles' ? 'segmented__item segmented__item--active' : 'segmented__item'} type="button" onClick={() => setView('roles')}>Perfis e permissões</button> : null}</nav> : null}
     {error ? <StateMessage kind="error" title="Não foi possível concluir a operação" message={error} /> : null}

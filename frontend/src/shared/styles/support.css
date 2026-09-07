@@ -1,6 +1,6 @@
 .support-form { display: grid; gap: 16px; }
 .support-form__note { margin: 0; }
-.support-contract-sla { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-soft); }
+.support-contract-sla { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-primary-soft); }
 .support-contract-sla strong { width: 100%; }
 .support-business-rule { display: grid; gap: 16px; padding-top: 4px; }
 
@@ -20,7 +20,7 @@
 .support-management { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
 
 .support-history__list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
-.support-history__list li { padding: 12px 14px; border-left: 3px solid var(--color-border-strong); background: var(--color-surface-soft); border-radius: 0 var(--radius-md) var(--radius-md) 0; }
+.support-history__list li { padding: 12px 14px; border-left: 3px solid var(--color-primary); background: var(--color-primary-soft); border-radius: 0 var(--radius-md) var(--radius-md) 0; }
 .support-history__list li > div { display: flex; justify-content: space-between; gap: 12px; }
 .support-history__list span, .support-history__list small { color: var(--color-muted); font-size: .82rem; }
 .support-history__list p { margin: 8px 0 0; white-space: pre-wrap; }

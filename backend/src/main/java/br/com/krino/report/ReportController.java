@@ -116,6 +116,7 @@ public class ReportController {
     public List<StudentAnswerRow> studentAnswers(@PathVariable long assessmentId, @PathVariable long studentId,
             @RequestParam(required = false) Long schoolId, @RequestParam(required = false) Long classId,
             Authentication authentication) {
+        filterService.requireStudentVisible(assessmentId, studentId, schoolId, classId, authentication);
         return reportService.studentAnswers(assessmentId, studentId, schoolId, classId, authentication);
     }
 
@@ -124,6 +125,7 @@ public class ReportController {
     public InterventionProfile intervention(@PathVariable long assessmentId, @PathVariable long studentId,
             @RequestParam(required = false) Long schoolId, @RequestParam(required = false) Long classId,
             Authentication authentication) {
+        filterService.requireStudentVisible(assessmentId, studentId, schoolId, classId, authentication);
         return reportService.intervention(assessmentId, studentId, schoolId, classId, authentication);
     }
 

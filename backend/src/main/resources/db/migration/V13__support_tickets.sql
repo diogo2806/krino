@@ -18,7 +18,7 @@ create index ix_support_ticket_status on support_ticket(status, severity, opened
 
 create table support_ticket_event (
     id bigint generated always as identity primary key,
-    ticket_id bigint not null references support_ticket(id) on delete cascade,
+    ticket_id bigint not null references support_ticket(id),
     actor_user_id bigint references app_user(id),
     actor_username varchar(120) not null,
     event_type varchar(30) not null check (event_type in ('CREATED', 'MESSAGE', 'STATUS_CHANGED', 'SEVERITY_CHANGED', 'RESOLUTION_RECORDED')),

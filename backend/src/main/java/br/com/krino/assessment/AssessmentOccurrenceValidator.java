@@ -17,9 +17,13 @@ public class AssessmentOccurrenceValidator {
     public void validate(long assessmentId, OccurrenceRequest request) {
         if (request.schoolId() == null && request.classId() == null) return;
         if (request.classId() != null) {
-            Integer classCount = jdbcTemplate.queryForObject(
-                    "select count(*) from network_assessment_scope where assessment_id = ? and class_id = ? and (? is null or school_id = ?)",
-                    Integer.class, assessmentId, request.classId(), request.schoolId(), request.schoolId());
+            Integer classCount = request.schoolId() == null
+                    ? jdbcTemplate.queryForObject(
+                            "select count(*) from network_assessment_scope where assessment_id = ? and class_id = ?",
+                            Integer.class, assessmentId, request.classId())
+                    : jdbcTemplate.queryForObject(
+                            "select count(*) from network_assessment_scope where assessment_id = ? and class_id = ? and school_id = ?",
+                            Integer.class, assessmentId, request.classId(), request.schoolId());
             if (classCount == null || classCount == 0) {
                 throw new IllegalArgumentException("A turma informada não pertence ao escopo desta avaliação.");
             }

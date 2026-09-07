@@ -11,7 +11,7 @@ class AssessmentReportServiceTest {
 
     @Test
     void shouldCalculateSeventyFivePercentWithTwoDecimalPlaces() throws Exception {
-        AssessmentReportService service = new AssessmentReportService(null, null, null);
+        AssessmentReportService service = new AssessmentReportService(null, null);
         Method percentage = AssessmentReportService.class.getDeclaredMethod("percentage", long.class, long.class);
         percentage.setAccessible(true);
 
@@ -22,7 +22,7 @@ class AssessmentReportServiceTest {
 
     @Test
     void shouldReturnNullWhenPercentageBaseIsZero() throws Exception {
-        AssessmentReportService service = new AssessmentReportService(null, null, null);
+        AssessmentReportService service = new AssessmentReportService(null, null);
         Method percentage = AssessmentReportService.class.getDeclaredMethod("percentage", long.class, long.class);
         percentage.setAccessible(true);
 

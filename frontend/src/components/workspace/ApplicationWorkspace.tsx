@@ -2,7 +2,7 @@ import { Activity, BookOpen, Bus, MessagesSquare, ScanLine, School, ShieldCheck,
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, apiRequest } from '../../shared/api/client';
 import { AccessControlPage } from '../access-control/AccessControlPage';
-import { UsersAccessPage } from '../admin/UsersAccessPage';
+import { AdminWorkspace } from '../admin/AdminWorkspace';
 import { Button } from '../button/Button';
 import { DiaryPage } from '../diario/DiaryPage';
 import { FamilyCommunicationPage } from '../family/FamilyCommunicationPage';
@@ -20,6 +20,10 @@ type Module = 'secretaria' | 'diario' | 'monitoramento' | 'acesso' | 'familias' 
 function hasTransportAccess(context: AccessContext) {
   return context.permissions.some((permission) => permission.startsWith('TRANSPORT_REQUEST_'))
     || context.networkPermissions.some((permission) => permission.startsWith('TRANSPORT_REVIEW_') || permission === 'TRANSPORT_CARD_ART_WRITE');
+}
+
+function hasAdminAccess(context: AccessContext) {
+  return context.networkPermissions.some((permission) => ['USER_READ', 'ROLE_READ', 'AUDIT_READ', 'DATA_EXPORT'].includes(permission));
 }
 
 export function ApplicationWorkspace({ onLogout }: ApplicationWorkspaceProps) {
@@ -40,7 +44,7 @@ export function ApplicationWorkspace({ onLogout }: ApplicationWorkspaceProps) {
       const canFamilyCommunication = next.permissions.some((permission) => permission.startsWith('FAMILY_COMMUNICATION_'));
       const canFamilyPortal = next.permissions.includes('STUDENT_LINKED_READ');
       const canTransport = hasTransportAccess(next);
-      const canAdmin = next.networkPermissions.some((permission) => ['USER_READ', 'ROLE_READ'].includes(permission));
+      const canAdmin = hasAdminAccess(next);
       const valid = (current?: Module) => current && ((current === 'secretaria' && canSecretaria) || (current === 'diario' && canDiary) || (current === 'monitoramento' && canMonitoring) || (current === 'acesso' && canAccessControl) || (current === 'familias' && canFamilyCommunication) || (current === 'portal-responsavel' && canFamilyPortal) || (current === 'transporte' && canTransport) || (current === 'admin' && canAdmin));
       const preferred: Module | undefined = canFamilyPortal ? 'portal-responsavel' : next.permissions.includes('TRANSPORT_REQUEST_READ') ? 'transporte' : next.permissions.includes('DIARY_EDIT') ? 'diario' : next.permissions.includes('ACCESS_CONTROL_WRITE') ? 'acesso' : canSecretaria ? 'secretaria' : canDiary ? 'diario' : canMonitoring ? 'monitoramento' : canAccessControl ? 'acesso' : canFamilyCommunication ? 'familias' : canTransport ? 'transporte' : canAdmin ? 'admin' : undefined;
       setModule((current) => valid(current) ? current : preferred);
@@ -63,7 +67,7 @@ export function ApplicationWorkspace({ onLogout }: ApplicationWorkspaceProps) {
   const canFamilyCommunication = context.permissions.some((permission) => permission.startsWith('FAMILY_COMMUNICATION_'));
   const canFamilyPortal = context.permissions.includes('STUDENT_LINKED_READ');
   const canTransport = hasTransportAccess(context);
-  const canAdmin = context.networkPermissions.some((permission) => ['USER_READ', 'ROLE_READ'].includes(permission));
+  const canAdmin = hasAdminAccess(context);
 
   const navigationItems: ApplicationShellNavigationItem[] = [];
   if (canSecretaria) navigationItems.push({ id: 'secretaria', label: 'Secretaria Escolar', icon: <School aria-hidden="true" size={18} />, active: module === 'secretaria', onSelect: () => setModule('secretaria') });
@@ -84,7 +88,7 @@ export function ApplicationWorkspace({ onLogout }: ApplicationWorkspaceProps) {
       navigationItems={navigationItems}
       onLogout={onLogout}
     >
-      {module === 'secretaria' ? <SecretariaEscolarPage context={context} onUnauthorized={onLogout} /> : module === 'diario' ? <DiaryPage context={context} onUnauthorized={onLogout} /> : module === 'monitoramento' ? <MonitoringPage context={context} onUnauthorized={onLogout} /> : module === 'acesso' ? <AccessControlPage context={context} onUnauthorized={onLogout} /> : module === 'familias' ? <FamilyCommunicationPage context={context} onUnauthorized={onLogout} /> : module === 'portal-responsavel' ? <FamilyPortalPage context={context} onUnauthorized={onLogout} /> : module === 'transporte' ? <UniversityTransportPage context={context} onUnauthorized={onLogout} /> : <UsersAccessPage onLogout={onLogout} />}
+      {module === 'secretaria' ? <SecretariaEscolarPage context={context} onUnauthorized={onLogout} /> : module === 'diario' ? <DiaryPage context={context} onUnauthorized={onLogout} /> : module === 'monitoramento' ? <MonitoringPage context={context} onUnauthorized={onLogout} /> : module === 'acesso' ? <AccessControlPage context={context} onUnauthorized={onLogout} /> : module === 'familias' ? <FamilyCommunicationPage context={context} onUnauthorized={onLogout} /> : module === 'portal-responsavel' ? <FamilyPortalPage context={context} onUnauthorized={onLogout} /> : module === 'transporte' ? <UniversityTransportPage context={context} onUnauthorized={onLogout} /> : <AdminWorkspace context={context} onLogout={onLogout} />}
     </ApplicationShell>
   );
 }

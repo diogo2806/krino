@@ -102,17 +102,108 @@ RF-038 é atendido pela estrutura de simulação por estudante, turma, escola e 
 - **REL-011** Relatório Individual de Intervenção Pedagógica / perfil do estudante.
 - **REL-012** Percentual de estudantes participantes das avaliações diagnósticas e/ou formativas da Rede.
 
+### Implementação e fonte dos dados
+
+Os relatórios da Avaliação em Rede usam o processamento concluído mais recente de `network_assessment_processing_run` para a avaliação selecionada. Os resultados consolidados vêm de `network_assessment_result`, `network_assessment_result_skill`, `network_assessment_answer_sheet` e `network_assessment_answer`, vinculados às atribuições reais de `network_assessment_assignment`.
+
+A migration `V12__reports_and_result_source.sql` registra `answer_sheet_id` em `network_assessment_result`, permitindo que relatórios por alternativa, questão e resposta individual usem exatamente a folha de respostas válida que originou o resultado processado.
+
+As segmentações aplicadas no backend respeitam as permissões `REPORT_READ` e `REPORT_EXPORT` no nível municipal ou escolar. Turma e estudante são sempre filtrados dentro do escopo autorizado.
+
+### Fórmulas da Avaliação em Rede
+
+Todos os percentuais diretamente derivados usam duas casas decimais e arredondamento `HALF_UP`. Quando a base é zero, o resultado percentual é `null` e a interface apresenta `Sem base`.
+
+#### Percentual de participação
+
+```text
+Percentual de participação (%) = (participantes / estudantes_esperados) * 100
+```
+
+Exemplo:
+
+```text
+Estudantes esperados: 10
+Participantes: 8
+Percentual de participação = (8 / 10) * 100 = 80,00%
+```
+
+`estudantes_esperados` corresponde aos estudantes distintos atribuídos à avaliação no escopo. `participantes` corresponde aos estudantes distintos que possuem resultado no processamento concluído mais recente.
+
+#### Percentual geral de acertos
+
+```text
+Percentual geral de acertos (%) = (soma_dos_acertos / soma_da_base_de_questoes_processadas) * 100
+```
+
+Exemplo:
+
+```text
+Acertos: 150
+Base de questões processadas: 200
+Percentual geral de acertos = (150 / 200) * 100 = 75,00%
+```
+
+#### Percentual de acerto por escola, habilidade/descritor ou componente curricular
+
+```text
+Percentual de acerto (%) = (acertos / base_de_questoes) * 100
+```
+
+A base de questões é sempre exibida junto do percentual nos relatórios detalhados e no CSV.
+
+#### Percentual de respostas por alternativa
+
+```text
+Percentual de respostas (%) = (respostas_na_alternativa / total_de_respostas_da_questao) * 100
+```
+
+Respostas sem alternativa marcada são agrupadas como `SEM_RESPOSTA` e participam da base total da questão, pois existem como resposta persistida na folha processada.
+
+#### Percentual de acerto por questão
+
+```text
+Percentual de acerto por questão (%) = (respostas_corretas / respostas_processadas_da_questao) * 100
+```
+
+A complexidade é relativa ao conjunto filtrado: a menor taxa de acerto é rotulada `Maior dificuldade relativa`, a maior taxa de acerto é `Menor dificuldade relativa` e os demais valores são `Intermediária`. Quando todas as questões possuem a mesma taxa de acerto, não há extremos relativos e todas ficam como `Intermediária`.
+
+### Níveis de desempenho
+
+Cada Avaliação em Rede pode ter faixas próprias em `network_assessment_performance_level`. Cada faixa contém nome, percentual mínimo e percentual máximo. Faixas devem estar entre 0% e 100%, o mínimo não pode superar o máximo e as faixas não podem se sobrepor.
+
+A classificação é aplicada aos relatórios por habilidade/descritor e ao perfil individual. Sem base, a classificação é `Sem base`; com percentual calculado mas sem faixa correspondente, a classificação é `Não parametrizada`.
+
+### Relatório Individual de Intervenção Pedagógica
+
+O perfil individual apresenta percentual geral de acertos e nível de desempenho. As habilidades são ordenadas pelo percentual de acerto para destacar até três prioridades relativas de atenção e até três pontos fortes relativos. Esses grupos são comparações internas do próprio conjunto de habilidades processadas e não substituem diagnóstico pedagógico profissional.
+
+### Exportação
+
+A exportação usa CSV UTF-8 (`text/csv; charset=UTF-8`) e está disponível para:
+
+- habilidades por escola;
+- respostas por alternativa;
+- acerto por questão;
+- acerto por habilidade/descritor;
+- análise por componente curricular;
+- participação;
+- respostas do estudante;
+- intervenção pedagógica.
+
+O CSV contém cabeçalhos legíveis e as bases de cálculo correspondentes. Na visão municipal, participação é exportada por escola; na visão de uma escola, por turma, mantendo o mesmo nível de detalhamento exibido na interface.
+
 ## Segmentações mínimas
 
-Sempre que aplicável, a plataforma deve permitir segmentação/consulta por:
+Sempre que aplicável, a plataforma permite segmentação/consulta por:
 
 1. Município/Rede;
 2. unidade escolar;
 3. turma;
 4. estudante;
 5. etapa/avaliação;
-6. componente curricular;
-7. habilidade/descritor.
+6. componente curricular da avaliação selecionada;
+7. habilidade/descritor nos relatórios específicos.
 
 ## Dashboards
 
@@ -123,4 +214,6 @@ Sempre que aplicável, a plataforma deve permitir segmentação/consulta por:
 - Dashboard/indicadores de monitoramento pedagógico.
 - Indicadores de evolução ao longo das etapas/períodos quando houver dados comparáveis.
 
-Não há fórmula específica de IDEB/IDEPE detalhada nos documentos anexos. A implementação de simulação deve ser documentada e validada com a Secretaria antes de ser tratada como cálculo oficial.
+Os dashboards da Avaliação em Rede exibem somente cards e gráficos. Tabelas ficam nos relatórios detalhados. A tela informa explicitamente o nível de análise selecionado e diferencia carregamento, ausência de avaliação, ausência de dados, falta de estudante nos relatórios individuais, falta de permissão e falha técnica.
+
+Não há fórmula específica de IDEB/IDEPE detalhada nos documentos anexos. A implementação de simulação permanece documentada separadamente e não é tratada como cálculo oficial.

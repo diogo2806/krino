@@ -17,7 +17,7 @@ export function eventLabel(eventType: string) {
     : eventType === 'MESSAGE' ? 'Interação'
       : eventType === 'STATUS_CHANGED' ? 'Status alterado'
         : eventType === 'SEVERITY_CHANGED' ? 'Criticidade alterada'
-          : eventType === 'RESOLUTION_RECORDED' ? 'Solução registrada'
+          : eventType === 'RESOLUTION_RECORDED' ? 'Solução atualizada'
             : 'Atualização';
 }
 

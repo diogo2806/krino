@@ -118,6 +118,40 @@ Habilidade 2: 2 acertos / 5 questões = 40,00%
 
 Os relatórios pedagógicos, gráficos e dashboards especializados dos itens 37 e 38 usam estes dados como fonte, mas sua apresentação completa permanece no escopo da issue de relatórios e indicadores.
 
+## Implementação dos itens 51 e 52 - Suporte e manutenção
+
+O KRINO possui fluxo interno rastreável para demonstrar os itens complementares de suporte e manutenção sem depender de ferramenta externa durante a POC.
+
+```text
++-------------------+     +--------------------+     +-----------------------+
+| Novo chamado      | --> | Atendimento        | --> | Solução / encerramento|
+| assunto/descrição |     | mensagens/status   |     | histórico preservado |
+| tipo/criticidade  |     | criticidade        |     | indicadores          |
++-------------------+     +---------+----------+     +-----------------------+
+                                    |
+                                    v
+                          +--------------------+
+                          | Prazos contratuais |
+                          | regra de contagem  |
+                          | configurável       |
+                          +--------------------+
+```
+
+Durante a demonstração:
+
+1. abrir um chamado e confirmar protocolo, data/hora e solicitante;
+2. demonstrar as criticidades Crítico, Médio e Baixo e seus tempos contratuais fixos;
+3. mostrar que, enquanto a regra de contagem estiver `UNDEFINED`, não é inventada uma data de vencimento;
+4. quando houver regra confirmada para a POC, configurar `ELAPSED` ou `BUSINESS` e demonstrar o vencimento calculado;
+5. registrar mensagem de atendimento e confirmar a primeira resposta;
+6. alterar status/criticidade e conferir o histórico rastreável;
+7. registrar solução, resolver e encerrar;
+8. consultar indicadores administrativos e atrasos no escopo autorizado;
+9. demonstrar os tipos Suporte e orientação, Manutenção corretiva, Manutenção preventiva e Evolução da plataforma;
+10. durante uma Avaliação em Rede, vincular opcionalmente o chamado à avaliação e à unidade escolar correspondente.
+
+Não pausar automaticamente a contagem no estado `Aguardando solicitante`: essa regra não foi confirmada no material contratual. Alterações futuras dessa regra exigem atualização do código e da documentação.
+
 ## Cenário de demonstração recomendado
 
 Usar exclusivamente dados fictícios e preparar um roteiro executável que demonstre:
@@ -131,7 +165,8 @@ Usar exclusivamente dados fictícios e preparar um roteiro executável que demon
 7. solicitar, analisar e aprovar transporte; emitir carteirinha;
 8. cadastrar avaliação, vincular estudantes, importar/processar gabarito e consolidar resultados;
 9. visualizar resultados nos quatro níveis exigidos;
-10. demonstrar relatório, dashboard, logs, backup/recuperação e exportação aberta.
+10. demonstrar relatório, dashboard, logs, backup/recuperação e exportação aberta;
+11. abrir e acompanhar um chamado de suporte, registrar atendimento, solução e consultar os indicadores correspondentes.
 
 ## Restrição da POC
 

@@ -43,10 +43,13 @@ public class NetworkAssessmentController {
 
     private final NetworkAssessmentService service;
     private final AssessmentOccurrenceQueryService occurrenceQueryService;
+    private final AssessmentOccurrenceValidator occurrenceValidator;
 
-    public NetworkAssessmentController(NetworkAssessmentService service, AssessmentOccurrenceQueryService occurrenceQueryService) {
+    public NetworkAssessmentController(NetworkAssessmentService service, AssessmentOccurrenceQueryService occurrenceQueryService,
+            AssessmentOccurrenceValidator occurrenceValidator) {
         this.service = service;
         this.occurrenceQueryService = occurrenceQueryService;
+        this.occurrenceValidator = occurrenceValidator;
     }
 
     @GetMapping("/catalog")
@@ -122,6 +125,7 @@ public class NetworkAssessmentController {
     @PreAuthorize("@authorizationService.hasPermission(authentication, 'ASSESSMENT_WRITE')")
     public OccurrenceView recordOccurrence(@PathVariable long assessmentId, @Valid @RequestBody OccurrenceRequest request,
             Authentication authentication) {
+        occurrenceValidator.validate(assessmentId, request);
         return service.recordOccurrence(assessmentId, request, authentication);
     }
 

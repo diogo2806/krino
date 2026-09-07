@@ -82,7 +82,7 @@ public class SupportTicketService {
         KrinoUserPrincipal principal = principal(authentication);
         boolean manager = authorizationService.hasNetworkPermission(authentication, "SUPPORT_TICKET_MANAGE");
         addEvent(ticketId, principal, "MESSAGE", null, null, request.message().trim());
-        if (manager && ticket.firstSupportResponseAt() == null) {
+        if (shouldRegisterFirstSupportResponse(manager, ticket.firstSupportResponseAt())) {
             jdbcTemplate.update("update support_ticket set first_support_response_at = current_timestamp, updated_at = current_timestamp where id = ?", ticketId);
         } else {
             jdbcTemplate.update("update support_ticket set updated_at = current_timestamp where id = ?", ticketId);
@@ -94,13 +94,8 @@ public class SupportTicketService {
     @Transactional
     public TicketDetail manage(long ticketId, ManageTicketRequest request, Authentication authentication) {
         TicketView current = ticket(ticketId);
-        if (current.status() == TicketStatus.CLOSED) {
-            throw new IllegalArgumentException("Chamado encerrado é somente para consulta e não pode ser alterado.");
-        }
         String resolution = normalize(request.resolution());
-        if ((request.status() == TicketStatus.RESOLVED || request.status() == TicketStatus.CLOSED) && resolution == null) {
-            throw new IllegalArgumentException("Informe a solução antes de marcar o chamado como resolvido ou encerrado.");
-        }
+        validateManagement(current.status(), request.status(), resolution);
 
         KrinoUserPrincipal principal = principal(authentication);
         if (current.severity() != request.severity()) {
@@ -109,15 +104,20 @@ public class SupportTicketService {
         if (current.status() != request.status()) {
             addEvent(ticketId, principal, "STATUS_CHANGED", current.status().name(), request.status().name(), "Status alterado pela equipe de suporte.");
         }
-        if (!Objects.equals(current.resolution(), resolution) && resolution != null) {
-            addEvent(ticketId, principal, "RESOLUTION_RECORDED", null, null, resolution);
+        if (!Objects.equals(current.resolution(), resolution)) {
+            addEvent(ticketId, principal, "RESOLUTION_RECORDED", null, null,
+                    resolution == null ? "Solução removida durante a reabertura ou continuidade do atendimento." : resolution);
         }
 
-        boolean firstResponse = current.firstSupportResponseAt() == null;
         jdbcTemplate.update(
-                "update support_ticket set severity = ?, status = ?, resolution = ?, first_support_response_at = case when first_support_response_at is null then current_timestamp else first_support_response_at end, resolved_at = case when ? = 'RESOLVED' and resolved_at is null then current_timestamp else resolved_at end, closed_at = case when ? = 'CLOSED' and closed_at is null then current_timestamp else closed_at end, updated_at = current_timestamp where id = ?",
-                request.severity().name(), request.status().name(), resolution, request.status().name(), request.status().name(), ticketId);
-        auditService.record(principal.username(), "SUPPORT_TICKET_MANAGED", "SUPPORT_TICKET", Long.toString(ticketId), "Chamado atualizado para status " + request.status().name() + " e criticidade " + request.severity().name() + (firstResponse ? "; primeira resposta registrada." : "."));
+                "update support_ticket set severity = ?, status = ?, resolution = ?, "
+                        + "resolved_at = case when ? in ('RESOLVED','CLOSED') and resolved_at is null then current_timestamp when ? not in ('RESOLVED','CLOSED') then null else resolved_at end, "
+                        + "closed_at = case when ? = 'CLOSED' and closed_at is null then current_timestamp else closed_at end, "
+                        + "updated_at = current_timestamp where id = ?",
+                request.severity().name(), request.status().name(), resolution,
+                request.status().name(), request.status().name(), request.status().name(), ticketId);
+        auditService.record(principal.username(), "SUPPORT_TICKET_MANAGED", "SUPPORT_TICKET", Long.toString(ticketId),
+                "Chamado atualizado para status " + request.status().name() + " e criticidade " + request.severity().name() + ".");
         return new TicketDetail(ticket(ticketId), events(ticketId));
     }
 
@@ -164,11 +164,24 @@ public class SupportTicketService {
                 ticketId);
     }
 
-    private void requireTicketAccess(TicketView ticket, Authentication authentication) {
+    void requireTicketAccess(TicketView ticket, Authentication authentication) {
         KrinoUserPrincipal principal = principal(authentication);
         if (!ticket.openedByUserId().equals(principal.id()) && !authorizationService.hasNetworkPermission(authentication, "SUPPORT_TICKET_MANAGE")) {
             throw new AccessDeniedException("Você não possui acesso a este chamado.");
         }
+    }
+
+    void validateManagement(TicketStatus currentStatus, TicketStatus nextStatus, String resolution) {
+        if (currentStatus == TicketStatus.CLOSED) {
+            throw new IllegalArgumentException("Chamado encerrado é somente para consulta e não pode ser alterado.");
+        }
+        if ((nextStatus == TicketStatus.RESOLVED || nextStatus == TicketStatus.CLOSED) && resolution == null) {
+            throw new IllegalArgumentException("Informe a solução antes de marcar o chamado como resolvido ou encerrado.");
+        }
+    }
+
+    boolean shouldRegisterFirstSupportResponse(boolean manager, OffsetDateTime firstSupportResponseAt) {
+        return manager && firstSupportResponseAt == null;
     }
 
     private KrinoUserPrincipal principal(Authentication authentication) {

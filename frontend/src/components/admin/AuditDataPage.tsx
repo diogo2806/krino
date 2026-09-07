@@ -32,13 +32,22 @@ type AdministrationExport = {
   tables: unknown[];
 };
 
+type AuditFilters = {
+  from: string;
+  to: string;
+  actor: string;
+  action: string;
+};
+
+const emptyFilters: AuditFilters = { from: '', to: '', actor: '', action: '' };
+
 const manualSections = [
   { title: 'Finalidade', content: 'Consultar o histórico de operações sensíveis e gerar uma cópia estruturada dos dados administrativos para auditoria e portabilidade.' },
-  { title: 'Campos e filtros', content: 'Período inicial e final restringem a data e hora do evento. Usuário localiza o responsável pela operação. Ação filtra o código rastreável registrado pelo sistema.' },
+  { title: 'Campos e filtros', content: 'Período inicial e final restringem a data e hora do evento. Usuário localiza o responsável pela operação. Ação registrada aceita o código rastreável usado pela auditoria, como USER_CREATED.' },
   { title: 'Botões e ações', content: 'Aplicar filtros consulta o histórico com os critérios informados. Limpar filtros volta à visão recente. Exportar dados prepara um arquivo JSON aberto e legível com os dados persistidos permitidos.' },
   { title: 'Regras', content: 'A consulta é limitada aos eventos mais recentes para proteger a interface. A exportação omite credenciais, senhas, tokens e segredos; o próprio ato de exportar fica registrado na auditoria.' },
   { title: 'Permissões', content: 'AUDIT_READ permite consultar o histórico. DATA_EXPORT permite gerar a exportação. O backend valida as permissões no escopo da Rede, independentemente do que a interface exibir.' },
-  { title: 'Fluxos', content: 'Para investigar uma operação, informe período, usuário ou ação e aplique os filtros. Para portabilidade, use Exportar dados e preserve o arquivo em local autorizado pela Administração.' },
+  { title: 'Fluxos', content: 'Para investigar uma operação, informe período, usuário ou ação registrada e aplique os filtros. Para portabilidade, use Exportar dados e preserve o arquivo em local autorizado pela Administração.' },
   { title: 'Mensagens e estados', content: 'A tela diferencia carregamento, ausência de eventos, acesso sem permissão, falha de consulta e preparação da exportação. Nenhuma mensagem exibe senha, token ou segredo.' },
 ];
 
@@ -66,17 +75,17 @@ export function AuditDataPage({ context, onUnauthorized }: Props) {
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
 
-  const loadAudit = async () => {
+  const loadAudit = async (filters: AuditFilters = { from, to, actor, action }) => {
     if (!canAudit) { setLoading(false); return; }
     setLoading(true); setError('');
     try {
       const params = new URLSearchParams({ limit: '300' });
-      const fromInstant = toIsoInstant(from);
-      const toInstant = toIsoInstant(to);
+      const fromInstant = toIsoInstant(filters.from);
+      const toInstant = toIsoInstant(filters.to);
       if (fromInstant) params.set('from', fromInstant);
       if (toInstant) params.set('to', toInstant);
-      if (actor.trim()) params.set('actor', actor.trim());
-      if (action.trim()) params.set('action', action.trim());
+      if (filters.actor.trim()) params.set('actor', filters.actor.trim());
+      if (filters.action.trim()) params.set('action', filters.action.trim());
       const next = await apiRequest<AuditEvent[]>(`/admin/audit?${params.toString()}`);
       setEvents(next);
     } catch (exception) {
@@ -85,11 +94,11 @@ export function AuditDataPage({ context, onUnauthorized }: Props) {
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { if (canAudit) void loadAudit(); }, [canAudit]);
+  useEffect(() => { if (canAudit) void loadAudit(emptyFilters); }, [canAudit]);
 
   const clearFilters = () => {
     setFrom(''); setTo(''); setActor(''); setAction('');
-    window.setTimeout(() => { void loadAudit(); }, 0);
+    void loadAudit(emptyFilters);
   };
 
   const exportData = async () => {
@@ -138,7 +147,7 @@ export function AuditDataPage({ context, onUnauthorized }: Props) {
         <TextField name="auditFrom" type="datetime-local" label="Período inicial" value={from} onChange={(event) => setFrom(event.target.value)} />
         <TextField name="auditTo" type="datetime-local" label="Período final" value={to} onChange={(event) => setTo(event.target.value)} />
         <TextField name="auditActor" label="Usuário" placeholder="Nome de usuário" value={actor} onChange={(event) => setActor(event.target.value)} />
-        <TextField name="auditAction" label="Ação" placeholder="Ex.: USER_CREATED" value={action} onChange={(event) => setAction(event.target.value)} />
+        <TextField name="auditAction" label="Ação registrada" placeholder="Ex.: USER_CREATED" value={action} onChange={(event) => setAction(event.target.value)} />
       </FilterBar>
 
       {loading ? <StateMessage title="Carregando histórico de operações" message="Aguarde enquanto os registros autorizados são consultados." /> : events.length === 0 ? <StateMessage title="Nenhum evento encontrado" message="Não há operações registradas para os filtros informados." /> : <DataTable rows={events} columns={columns} rowKey={(event) => event.id} />}

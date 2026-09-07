@@ -1,4 +1,4 @@
-import { Activity, BarChart3, BookOpen, Bus, ClipboardCheck, MessagesSquare, ScanLine, School, ShieldCheck, UsersRound } from 'lucide-react';
+import { Activity, BarChart3, BookOpen, Bus, ClipboardCheck, LifeBuoy, MessagesSquare, ScanLine, School, ShieldCheck, UsersRound } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, apiRequest } from '../../shared/api/client';
 import { AccessControlPage } from '../access-control/AccessControlPage';
@@ -13,11 +13,12 @@ import { MonitoringPage } from '../monitoring/MonitoringPage';
 import { ReportsPage } from '../report/ReportsPage';
 import { SecretariaEscolarPage } from '../secretaria/SecretariaEscolarPage';
 import { StateMessage } from '../state/StateMessage';
+import { SupportPage } from '../support/SupportPage';
 import { UniversityTransportPage } from '../transport/UniversityTransportPage';
 import type { AccessContext } from './types';
 
 type ApplicationWorkspaceProps = { onLogout: () => void; };
-type Module = 'secretaria' | 'diario' | 'monitoramento' | 'avaliacoes' | 'relatorios' | 'acesso' | 'familias' | 'portal-responsavel' | 'transporte' | 'admin';
+type Module = 'secretaria' | 'diario' | 'monitoramento' | 'avaliacoes' | 'relatorios' | 'acesso' | 'familias' | 'portal-responsavel' | 'transporte' | 'suporte' | 'admin';
 
 function hasTransportAccess(context: AccessContext) {
   return context.permissions.some((permission) => permission.startsWith('TRANSPORT_REQUEST_'))
@@ -26,6 +27,11 @@ function hasTransportAccess(context: AccessContext) {
 
 function hasAdminAccess(context: AccessContext) {
   return context.networkPermissions.some((permission) => ['USER_READ', 'ROLE_READ', 'AUDIT_READ', 'DATA_EXPORT'].includes(permission));
+}
+
+function hasSupportAccess(context: AccessContext) {
+  return context.permissions.includes('SUPPORT_TICKET_CREATE')
+    || context.networkPermissions.some((permission) => ['SUPPORT_TICKET_CREATE', 'SUPPORT_TICKET_MANAGE'].includes(permission));
 }
 
 export function ApplicationWorkspace({ onLogout }: ApplicationWorkspaceProps) {
@@ -48,9 +54,10 @@ export function ApplicationWorkspace({ onLogout }: ApplicationWorkspaceProps) {
       const canFamilyCommunication = next.permissions.some((permission) => permission.startsWith('FAMILY_COMMUNICATION_'));
       const canFamilyPortal = next.permissions.includes('STUDENT_LINKED_READ');
       const canTransport = hasTransportAccess(next);
+      const canSupport = hasSupportAccess(next);
       const canAdmin = hasAdminAccess(next);
-      const valid = (current?: Module) => current && ((current === 'secretaria' && canSecretaria) || (current === 'diario' && canDiary) || (current === 'monitoramento' && canMonitoring) || (current === 'avaliacoes' && canAssessment) || (current === 'relatorios' && canReports) || (current === 'acesso' && canAccessControl) || (current === 'familias' && canFamilyCommunication) || (current === 'portal-responsavel' && canFamilyPortal) || (current === 'transporte' && canTransport) || (current === 'admin' && canAdmin));
-      const preferred: Module | undefined = canFamilyPortal ? 'portal-responsavel' : next.permissions.includes('TRANSPORT_REQUEST_READ') ? 'transporte' : next.permissions.includes('DIARY_EDIT') ? 'diario' : next.permissions.includes('ACCESS_CONTROL_WRITE') ? 'acesso' : canSecretaria ? 'secretaria' : canDiary ? 'diario' : canMonitoring ? 'monitoramento' : canAssessment ? 'avaliacoes' : canReports ? 'relatorios' : canAccessControl ? 'acesso' : canFamilyCommunication ? 'familias' : canTransport ? 'transporte' : canAdmin ? 'admin' : undefined;
+      const valid = (current?: Module) => current && ((current === 'secretaria' && canSecretaria) || (current === 'diario' && canDiary) || (current === 'monitoramento' && canMonitoring) || (current === 'avaliacoes' && canAssessment) || (current === 'relatorios' && canReports) || (current === 'acesso' && canAccessControl) || (current === 'familias' && canFamilyCommunication) || (current === 'portal-responsavel' && canFamilyPortal) || (current === 'transporte' && canTransport) || (current === 'suporte' && canSupport) || (current === 'admin' && canAdmin));
+      const preferred: Module | undefined = canFamilyPortal ? 'portal-responsavel' : next.permissions.includes('TRANSPORT_REQUEST_READ') ? 'transporte' : next.permissions.includes('DIARY_EDIT') ? 'diario' : next.permissions.includes('ACCESS_CONTROL_WRITE') ? 'acesso' : canSecretaria ? 'secretaria' : canDiary ? 'diario' : canMonitoring ? 'monitoramento' : canAssessment ? 'avaliacoes' : canReports ? 'relatorios' : canAccessControl ? 'acesso' : canFamilyCommunication ? 'familias' : canTransport ? 'transporte' : canSupport ? 'suporte' : canAdmin ? 'admin' : undefined;
       setModule((current) => valid(current) ? current : preferred);
     } catch (exception) {
       if (exception instanceof ApiError && exception.status === 401) { onLogout(); return; }
@@ -73,6 +80,7 @@ export function ApplicationWorkspace({ onLogout }: ApplicationWorkspaceProps) {
   const canFamilyCommunication = context.permissions.some((permission) => permission.startsWith('FAMILY_COMMUNICATION_'));
   const canFamilyPortal = context.permissions.includes('STUDENT_LINKED_READ');
   const canTransport = hasTransportAccess(context);
+  const canSupport = hasSupportAccess(context);
   const canAdmin = hasAdminAccess(context);
 
   const navigationItems: ApplicationShellNavigationItem[] = [];
@@ -85,17 +93,13 @@ export function ApplicationWorkspace({ onLogout }: ApplicationWorkspaceProps) {
   if (canFamilyCommunication) navigationItems.push({ id: 'familias', label: 'Comunicação com Famílias', icon: <MessagesSquare aria-hidden="true" size={18} />, active: module === 'familias', onSelect: () => setModule('familias') });
   if (canFamilyPortal) navigationItems.push({ id: 'portal-responsavel', label: 'Portal do Responsável', icon: <UsersRound aria-hidden="true" size={18} />, active: module === 'portal-responsavel', onSelect: () => setModule('portal-responsavel') });
   if (canTransport) navigationItems.push({ id: 'transporte', label: 'Transporte Universitário', icon: <Bus aria-hidden="true" size={18} />, active: module === 'transporte', onSelect: () => setModule('transporte') });
+  if (canSupport) navigationItems.push({ id: 'suporte', label: 'Suporte e Chamados', icon: <LifeBuoy aria-hidden="true" size={18} />, active: module === 'suporte', onSelect: () => setModule('suporte') });
   if (canAdmin) navigationItems.push({ id: 'admin', label: 'Administração', icon: <ShieldCheck aria-hidden="true" size={18} />, active: module === 'admin', onSelect: () => setModule('admin') });
 
   const activeContext = navigationItems.find((item) => item.active)?.label ?? 'Módulos do sistema';
 
   return (
-    <ApplicationShell
-      contextLabel={activeContext}
-      userName={context.displayName || context.username}
-      navigationItems={navigationItems}
-      onLogout={onLogout}
-    >
+    <ApplicationShell contextLabel={activeContext} userName={context.displayName || context.username} navigationItems={navigationItems} onLogout={onLogout}>
       {module === 'secretaria' ? <SecretariaEscolarPage context={context} onUnauthorized={onLogout} />
         : module === 'diario' ? <DiaryPage context={context} onUnauthorized={onLogout} />
         : module === 'monitoramento' ? <MonitoringPage context={context} onUnauthorized={onLogout} />
@@ -105,6 +109,7 @@ export function ApplicationWorkspace({ onLogout }: ApplicationWorkspaceProps) {
         : module === 'familias' ? <FamilyCommunicationPage context={context} onUnauthorized={onLogout} />
         : module === 'portal-responsavel' ? <FamilyPortalPage context={context} onUnauthorized={onLogout} />
         : module === 'transporte' ? <UniversityTransportPage context={context} onUnauthorized={onLogout} />
+        : module === 'suporte' ? <SupportPage context={context} onUnauthorized={onLogout} />
         : <AdminWorkspace context={context} onLogout={onLogout} />}
     </ApplicationShell>
   );

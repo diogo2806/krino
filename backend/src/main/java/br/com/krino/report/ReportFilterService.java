@@ -45,6 +45,14 @@ public class ReportFilterService {
         return new ReportFilters(classes, students);
     }
 
+    public void requireStudentVisible(long assessmentId, long studentId, Long schoolId, Long classId, Authentication authentication) {
+        boolean visible = filters(assessmentId, schoolId, authentication).students().stream()
+                .anyMatch(student -> student.id() == studentId && (classId == null || student.classId() == classId));
+        if (!visible) {
+            throw new AccessDeniedException("O estudante informado não pertence ao escopo autorizado deste relatório.");
+        }
+    }
+
     private String placeholders(int size) {
         return String.join(",", java.util.Collections.nCopies(size, "?"));
     }

@@ -63,7 +63,7 @@ Durante períodos de avaliação em rede, o suporte deve ser compatível com a c
 
 ### Implementação do canal rastreável
 
-O KRINO implementa o suporte interno por `support_ticket` e `support_ticket_event`. A data/hora de abertura é criada pelo banco e não é alterada pelos fluxos de atualização. Cada interação, mudança de status, mudança de criticidade e registro de solução permanece no histórico cronológico do chamado.
+O KRINO implementa o suporte interno por `support_ticket` e `support_ticket_event`. A data/hora de abertura é criada pelo banco e não é alterada pelos fluxos de atualização. Cada interação, mudança de status, mudança de criticidade e atualização da solução permanece no histórico cronológico do chamado.
 
 Permissões:
 
@@ -76,7 +76,7 @@ O backend expõe:
 - `GET /api/support/tickets/{id}` e `POST /api/support/tickets/{id}/messages` com validação de propriedade ou gestão municipal;
 - `GET /api/support/admin/tickets`, `PUT /api/support/admin/tickets/{id}` e `GET /api/support/admin/summary` para a equipe autorizada.
 
-Estados implementados: `OPEN` (Aberto), `IN_PROGRESS` (Em atendimento), `WAITING_REQUESTER` (Aguardando solicitante), `RESOLVED` (Resolvido) e `CLOSED` (Encerrado). Marcar como Resolvido ou Encerrado exige solução. Depois de Encerrado o chamado é somente leitura, preservando histórico e solução.
+Estados implementados: `OPEN` (Aberto), `IN_PROGRESS` (Em atendimento), `WAITING_REQUESTER` (Aguardando solicitante), `RESOLVED` (Resolvido) e `CLOSED` (Encerrado). Marcar como Resolvido ou Encerrado exige solução. Depois de Encerrado o chamado é somente leitura, preservando histórico e solução. Um chamado Resolvido pode voltar a um estado ativo; nessa situação o instante de resolução deixa de representar a solução atual e é limpo para que uma nova resolução registre um novo horário.
 
 A criticidade determina somente os alvos documentais, sem inventar calendário de contagem:
 
@@ -86,8 +86,18 @@ A criticidade determina somente os alvos documentais, sem inventar calendário d
 | Médio | `MEDIUM` | 4h | 24h |
 | Baixo | `LOW` | 24h | 72h |
 
-O sistema registra `opened_at`, `first_support_response_at`, `resolved_at` e `closed_at`, portanto possui os fatos necessários para cálculo posterior. Entretanto, como as fontes não definem se a contagem contratual usa horas úteis ou corridas, `contractualCountingRuleDefined` permanece falso e a interface não apresenta “em risco” ou “vencido” como afirmação contratual. Essa classificação só deve ser implementada quando a regra documental for confirmada.
+O sistema registra `opened_at`, `first_support_response_at`, `resolved_at` e `closed_at`, portanto possui os fatos necessários para cálculo posterior. `first_support_response_at` é preenchido somente na primeira mensagem registrada pela equipe com `SUPPORT_TICKET_MANAGE`; uma simples alteração administrativa de status ou criticidade não é contabilizada como resposta ao solicitante. `resolved_at` é registrado ao resolver ou encerrar e é limpo se o chamado voltar a um estado ativo.
+
+Como as fontes não definem se a contagem contratual usa horas úteis ou corridas, `contractualCountingRuleDefined` permanece falso e a interface não apresenta “em risco” ou “vencido” como afirmação contratual. Essa classificação só deve ser implementada quando a regra documental for confirmada.
 
 A interface **Suporte e Chamados** usa componentes de `frontend/src/components/support`, Manual da Tela via `PageHeader` e estilos exclusivamente em `frontend/src/shared/styles/support.css`, carregados pelo ponto único `index.css`. Para usuários comuns, a lista mostra somente os próprios chamados; para `SUPPORT_TICKET_MANAGE`, a mesma área apresenta fila municipal e cards de resumo sem duplicar o histórico operacional.
 
 As operações de abertura, interação e gestão também produzem eventos na trilha de auditoria geral `security_audit_event`, sem copiar o conteúdo integral das mensagens para o log de segurança.
+
+### Manutenção corretiva, preventiva e evolutiva
+
+O mecanismo de atualização da aplicação segue a arquitetura real do projeto: backend e frontend são empacotados pelos `Dockerfile` existentes e executados como serviços separados em containers no ambiente VPS/EasyPanel. O KRINO não implementa um “autoatualizador” dentro da interface, pois a substituição de versão pertence ao ciclo de implantação dos containers e não deve duplicar esse mecanismo dentro da aplicação.
+
+Chamados podem registrar demandas corretivas, preventivas e evolutivas e preservar suas interações e solução. Alterações de versão do sistema não apagam esse histórico. Mudanças de banco devem continuar sendo aditivas por migrations Flyway versionadas; a implementação de suporte usa `V13__support_tickets.sql`, depois das migrations `V10` a `V12` da Avaliação em Rede e de Relatórios.
+
+Essa documentação não cria periodicidade de manutenção, janela de indisponibilidade, RPO, RTO ou regra de horas úteis/corridas que não esteja definida nas fontes contratuais.

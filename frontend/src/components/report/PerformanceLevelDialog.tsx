@@ -46,6 +46,15 @@ export function PerformanceLevelDialog({ open, assessmentId, levels, onClose, on
       setError('Preencha o nome e os percentuais mínimo e máximo de todas as faixas.');
       return;
     }
+    if (payload.some((row) => row.minimumPercent < 0 || row.maximumPercent > 100 || row.minimumPercent > row.maximumPercent)) {
+      setError('Cada faixa deve estar entre 0% e 100%, e o mínimo não pode superar o máximo.');
+      return;
+    }
+    const ordered = [...payload].sort((left, right) => left.minimumPercent - right.minimumPercent);
+    if (ordered.some((row, index) => index > 0 && row.minimumPercent <= ordered[index - 1].maximumPercent)) {
+      setError('As faixas de desempenho não podem se sobrepor.');
+      return;
+    }
     setSaving(true);
     try {
       const saved = await apiRequest<PerformanceLevel[]>(`/reports/assessments/${assessmentId}/performance-levels`, {
@@ -66,7 +75,7 @@ export function PerformanceLevelDialog({ open, assessmentId, levels, onClose, on
       <p className="muted">Defina faixas sem sobreposição, entre 0% e 100%. A ordem exibida segue a ordem das linhas.</p>
       {error ? <StateMessage kind="error" title="Não foi possível salvar" message={error} /> : null}
       <div className="report-level-list">
-        {rows.map((row, index) => <div className="report-level-row" key={`${index}-${row.label}`}>
+        {rows.map((row, index) => <div className="report-level-row" key={index}>
           <label className="field"><span className="field__label">Nível</span><input className="input" value={row.label} maxLength={100} onChange={(event) => updateRow(index, 'label', event.target.value)} placeholder="Ex.: Adequado" /></label>
           <label className="field"><span className="field__label">Mínimo (%)</span><input className="input" type="number" min="0" max="100" step="0.01" value={row.minimumPercent} onChange={(event) => updateRow(index, 'minimumPercent', event.target.value)} /></label>
           <label className="field"><span className="field__label">Máximo (%)</span><input className="input" type="number" min="0" max="100" step="0.01" value={row.maximumPercent} onChange={(event) => updateRow(index, 'maximumPercent', event.target.value)} /></label>

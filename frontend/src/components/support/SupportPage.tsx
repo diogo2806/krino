@@ -1,4 +1,4 @@
-import { LifeBuoy, Plus, Search, XCircle } from 'lucide-react';
+import { Plus, Search, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, apiRequest } from '../../shared/api/client';
 import { Button } from '../button/Button';
@@ -20,11 +20,11 @@ type Props = { context: AccessContext; onUnauthorized: () => void; };
 const manualSections = [
   { title: 'Finalidade', content: 'Abrir e acompanhar chamados de suporte técnico de forma rastreável. Usuários consultam os próprios atendimentos; a equipe autorizada gerencia a fila municipal e o histórico.' },
   { title: 'Campos e filtros', content: 'Buscar localiza assunto e, na gestão, solicitante. Status separa chamados abertos, em atendimento, aguardando solicitante, resolvidos e encerrados. Criticidade usa Crítico, Médio e Baixo.' },
-  { title: 'Botões e ações', content: 'Novo chamado registra uma solicitação. Aplicar filtros atualiza a lista. Abrir chamado exibe descrição, referência de prazo, interações e solução. A equipe autorizada altera criticidade/status e registra a solução.' },
-  { title: 'Regras', content: 'A data/hora de abertura é preservada. Encerramento exige solução registrada. Mudanças de status e criticidade entram no histórico. Chamado encerrado fica somente para consulta.' },
-  { title: 'Prazos', content: 'Referências documentadas: Crítico resposta 1h/solução 4h; Médio 4h/24h; Baixo 24h/72h. Como os documentos não definem horas úteis ou corridas, a tela não classifica o prazo como vencido ou em risco.' },
-  { title: 'Permissões', content: 'SUPPORT_TICKET_CREATE permite abrir e acompanhar chamados próprios. SUPPORT_TICKET_MANAGE permite gestão municipal e resumo administrativo. O backend valida propriedade e permissão em cada operação.' },
-  { title: 'Fluxos', content: 'Abra o chamado com assunto, descrição e criticidade. Acompanhe as interações. A equipe registra atendimento, pode solicitar retorno ao usuário e, ao concluir, informa a solução antes de resolver ou encerrar.' },
+  { title: 'Botões e ações', content: 'Novo chamado registra uma solicitação. Aplicar filtros atualiza a lista. Ver chamado exibe descrição, referências de prazo, interações e solução. A equipe autorizada altera criticidade e status e registra a solução.' },
+  { title: 'Regras', content: 'A data e a hora de abertura são preservadas. Encerramento exige solução registrada. Mudanças de status e criticidade entram no histórico. Chamado encerrado fica somente para consulta.' },
+  { title: 'Prazos', content: 'Referências documentadas: Crítico, resposta em até 1h e solução em até 4h; Médio, 4h e 24h; Baixo, 24h e 72h. Como os documentos não definem horas úteis ou corridas, a tela não classifica o prazo como vencido ou em risco.' },
+  { title: 'Permissões', content: 'A permissão de abertura permite criar e acompanhar chamados próprios. A permissão de gestão permite administrar a fila municipal e consultar o resumo. O backend valida propriedade e permissão em cada operação.' },
+  { title: 'Fluxos', content: 'Abra o chamado com assunto, descrição e criticidade. Acompanhe as interações. A equipe registra o atendimento, pode solicitar retorno ao usuário e, ao concluir, informa a solução antes de resolver ou encerrar.' },
   { title: 'Mensagens e estados', content: 'A tela diferencia carregamento, lista vazia, falha, ausência de permissão e chamado encerrado. Durante o envio ou salvamento, a ação informa que está em processamento.' },
 ];
 
@@ -75,13 +75,13 @@ export function SupportPage({ context, onUnauthorized }: Props) {
     { key: 'status', header: 'Status', render: (ticket) => <span className={ticket.status === 'CLOSED' ? 'status-badge' : 'status-badge status-badge--active'}>{statusLabel(ticket.status)}</span> },
     { key: 'sla', header: 'Prazos de referência', render: (ticket) => <><strong>Resposta {ticket.responseTargetHours}h · Solução {ticket.solutionTargetHours}h</strong><small>Contagem contratual ainda não definida</small></> },
     { key: 'openedAt', header: 'Aberto em', render: (ticket) => formatSupportDate(ticket.openedAt) },
-    { key: 'action', header: 'Ação', render: (ticket) => <Button type="button" variant="ghost" onClick={() => setSelectedId(ticket.id)}>Abrir chamado</Button> },
+    { key: 'action', header: 'Ação', render: (ticket) => <Button type="button" variant="ghost" onClick={() => setSelectedId(ticket.id)}>Ver chamado</Button> },
   ], [canManage]);
 
   return <main className="app-page">
     <PageHeader
       eyebrow="Atendimento"
-      title="Suporte e chamados"
+      title="Suporte e Chamados"
       description={canManage ? 'Fila municipal, histórico e acompanhamento dos atendimentos.' : 'Abra e acompanhe seus chamados de suporte técnico.'}
       manualSections={manualSections}
       actions={canCreate ? <Button type="button" variant="primary" onClick={() => setNewOpen(true)}><Plus aria-hidden="true" size={18} />Novo chamado</Button> : undefined}

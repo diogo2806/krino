@@ -122,3 +122,22 @@ Convenção: `RF-XXX` identifica requisito funcional. Requisitos marcados como *
 - **RF-095 [POC-C]** Disponibilizar canais/mecanismos de suporte técnico rastreáveis.
 - **RF-096 [POC-C]** Registrar e acompanhar chamados técnicos, quando o canal adotado for sistema de chamados.
 - **RF-097 [POC-C]** Disponibilizar mecanismos de atualização e manutenção da plataforma.
+
+### Implementação dos RF-095 a RF-097
+
+O KRINO adota um módulo interno de **Suporte e Chamados** como canal rastreável. O fluxo implementado permite:
+
+- abrir chamado com assunto, descrição, tipo de atendimento e criticidade;
+- vincular opcionalmente unidade escolar e Avaliação em Rede relacionada;
+- consultar e filtrar chamados por status, criticidade, unidade, protocolo, assunto ou solicitante;
+- registrar histórico cronológico de mensagens, mudanças de status, mudanças de criticidade e solução;
+- preservar data/hora original de abertura e identificação do solicitante;
+- distinguir suporte/orientação, manutenção corretiva, preventiva e evolução;
+- exigir solução registrada antes de resolver ou encerrar;
+- reabrir atendimento resolvido sem apagar a solução histórica registrada nas interações;
+- exibir prazo de resposta, prazo de solução e estado do SLA conforme a regra de contagem confirmada/configurada;
+- disponibilizar indicadores administrativos de quantidade, atendimentos ativos, atrasos e tempos médios;
+- aplicar permissões e escopo municipal/escolar no backend;
+- registrar em auditoria as operações sensíveis do ciclo de suporte.
+
+Os prazos contratuais por criticidade não são editáveis. A forma de contagem é tratada separadamente e está documentada em `03-requisitos-nao-funcionais.md`.

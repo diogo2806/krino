@@ -8,20 +8,12 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.DecimalMax;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 
 @Service
 public class AssessmentReportService {
@@ -41,14 +33,12 @@ public class AssessmentReportService {
         List<SchoolOption> schools = jdbcTemplate.query(
                 "select id, name from school_unit where active = true and id in (" + in + ") order by name",
                 (rs, rowNum) -> new SchoolOption(rs.getLong("id"), rs.getString("name")), schoolIds.toArray());
-
-        List<Object> params = new ArrayList<>();
+        List<Object> params = new ArrayList<>(schoolIds);
         StringBuilder sql = new StringBuilder(
                 "select distinct a.id, a.name, a.stage, a.academic_year, a.grade_stage, cc.name component_name "
                         + "from network_assessment a left join curricular_component cc on cc.id = a.component_id "
                         + "join network_assessment_scope s on s.assessment_id = a.id where s.school_id in (")
                 .append(in).append(")");
-        params.addAll(schoolIds);
         if (year != null) { sql.append(" and a.academic_year = ?"); params.add(year); }
         sql.append(" order by a.academic_year desc, a.name");
         List<AssessmentOption> assessments = jdbcTemplate.query(sql.toString(), (rs, rowNum) -> new AssessmentOption(
@@ -59,42 +49,28 @@ public class AssessmentReportService {
 
     public DashboardView dashboard(long assessmentId, Long schoolId, Long classId, Authentication authentication) {
         requireAssessmentVisible(assessmentId, schoolId, authentication);
-        Long runId = latestRunId(assessmentId);
         Scope scope = scope(authentication, schoolId, classId, null, "aa");
-
-        List<Object> baseParams = new ArrayList<>();
-        baseParams.add(assessmentId);
-        baseParams.addAll(scope.parameters());
+        List<Object> expectedParams = new ArrayList<>(); expectedParams.add(assessmentId); expectedParams.addAll(scope.parameters());
         Long expected = jdbcTemplate.queryForObject(
                 "select count(distinct aa.student_id) from network_assessment_assignment aa where aa.assessment_id = ?" + scope.sql(),
-                Long.class, baseParams.toArray());
-
+                Long.class, expectedParams.toArray());
+        Long runId = latestRunId(assessmentId);
         long participants = 0;
         long correct = 0;
         long total = 0;
-        int skills = 0;
         if (runId != null) {
-            List<Object> resultParams = new ArrayList<>(); resultParams.add(runId); resultParams.add(assessmentId); resultParams.addAll(scope.parameters());
+            List<Object> params = new ArrayList<>(); params.add(runId); params.add(assessmentId); params.addAll(scope.parameters());
             DashboardAggregate aggregate = jdbcTemplate.queryForObject(
                     "select count(distinct aa.student_id) participants, coalesce(sum(r.correct_answers),0) correct_sum, coalesce(sum(r.total_questions),0) total_sum "
                             + "from network_assessment_result r join network_assessment_assignment aa on aa.id = r.assignment_id "
                             + "where r.processing_run_id = ? and r.assessment_id = ?" + scope.sql(),
-                    (rs, rowNum) -> new DashboardAggregate(rs.getLong("participants"), rs.getLong("correct_sum"), rs.getLong("total_sum")), resultParams.toArray());
+                    (rs, rowNum) -> new DashboardAggregate(rs.getLong("participants"), rs.getLong("correct_sum"), rs.getLong("total_sum")), params.toArray());
             if (aggregate != null) { participants = aggregate.participants(); correct = aggregate.correctSum(); total = aggregate.totalSum(); }
-            List<Object> skillParams = new ArrayList<>(); skillParams.add(runId); skillParams.add(assessmentId); skillParams.addAll(scope.parameters());
-            Integer skillCount = jdbcTemplate.queryForObject(
-                    "select count(*) from (select rs.descriptor, rs.skill from network_assessment_result_skill rs "
-                            + "join network_assessment_result r on r.id = rs.result_id join network_assessment_assignment aa on aa.id = r.assignment_id "
-                            + "where r.processing_run_id = ? and r.assessment_id = ?" + scope.sql() + " group by rs.descriptor, rs.skill) x",
-                    Integer.class, skillParams.toArray());
-            skills = skillCount == null ? 0 : skillCount;
         }
-
-        List<BreakdownRow> schoolBreakdown = participation(assessmentId, "SCHOOL", schoolId, classId, authentication);
-        List<SkillRow> skillRows = runId == null ? List.of() : skills(assessmentId, schoolId, classId, null, authentication);
-        return new DashboardView(expected == null ? 0 : expected, participants,
-                percentage(participants, expected == null ? 0 : expected), percentage(correct, total), skills,
-                schoolBreakdown, skillRows.stream().limit(12).toList());
+        List<SkillRow> skillRows = skills(assessmentId, schoolId, classId, null, authentication);
+        return new DashboardView(expected == null ? 0 : expected, participants, percentage(participants, expected == null ? 0 : expected),
+                percentage(correct, total), skillRows.size(), participation(assessmentId, "SCHOOL", schoolId, classId, authentication),
+                skillRows.stream().limit(12).toList());
     }
 
     public List<SchoolSkillRow> schoolSkills(long assessmentId, Long schoolId, Long classId, Authentication authentication) {
@@ -126,10 +102,8 @@ public class AssessmentReportService {
         List<AlternativeCount> counts = jdbcTemplate.query(
                 "select q.sequence_number, q.descriptor, q.skill, q.correct_option, upper(coalesce(ans.selected_option, 'SEM_RESPOSTA')) selected_option, count(*) responses "
                         + "from network_assessment_result r join network_assessment_assignment aa on aa.id = r.assignment_id "
-                        + "join network_assessment_answer_sheet sh on sh.id = r.answer_sheet_id "
-                        + "join network_assessment_answer ans on ans.answer_sheet_id = sh.id "
-                        + "join network_assessment_question q on q.id = ans.question_id "
-                        + "where r.processing_run_id = ? and r.assessment_id = ?" + scope.sql()
+                        + "join network_assessment_answer_sheet sh on sh.id = r.answer_sheet_id join network_assessment_answer ans on ans.answer_sheet_id = sh.id "
+                        + "join network_assessment_question q on q.id = ans.question_id where r.processing_run_id = ? and r.assessment_id = ?" + scope.sql()
                         + " group by q.sequence_number, q.descriptor, q.skill, q.correct_option, upper(coalesce(ans.selected_option, 'SEM_RESPOSTA')) "
                         + "order by q.sequence_number, selected_option",
                 (rs, rowNum) -> new AlternativeCount(rs.getInt("sequence_number"), rs.getString("descriptor"), rs.getString("skill"),
@@ -159,10 +133,10 @@ public class AssessmentReportService {
                             percentage(correct, responses), "Intermediária");
                 }, params.toArray());
         if (rows.isEmpty()) return rows;
-        BigDecimal min = rows.stream().map(QuestionRow::correctPercent).filter(java.util.Objects::nonNull).min(Comparator.naturalOrder()).orElse(null);
-        BigDecimal max = rows.stream().map(QuestionRow::correctPercent).filter(java.util.Objects::nonNull).max(Comparator.naturalOrder()).orElse(null);
+        BigDecimal min = rows.stream().map(QuestionRow::correctPercent).filter(Objects::nonNull).min(Comparator.naturalOrder()).orElse(null);
+        BigDecimal max = rows.stream().map(QuestionRow::correctPercent).filter(Objects::nonNull).max(Comparator.naturalOrder()).orElse(null);
         return rows.stream().map(row -> new QuestionRow(row.sequenceNumber(), row.descriptor(), row.skill(), row.correctAnswers(), row.responses(), row.correctPercent(),
-                row.correctPercent() == null ? "Sem base" : row.correctPercent().compareTo(min) == 0 && row.correctPercent().compareTo(max) != 0 ? "Maior dificuldade relativa" : row.correctPercent().compareTo(max) == 0 && row.correctPercent().compareTo(min) != 0 ? "Menor dificuldade relativa" : "Intermediária")).toList();
+                relativeComplexity(row.correctPercent(), min, max))).toList();
     }
 
     public List<SkillRow> skills(long assessmentId, Long schoolId, Long classId, Long studentId, Authentication authentication) {
@@ -209,7 +183,8 @@ public class AssessmentReportService {
                         + "case when upper(coalesce(ans.selected_option,'')) = upper(q.correct_option) then true else false end correct "
                         + "from network_assessment_result r join network_assessment_assignment aa on aa.id = r.assignment_id "
                         + "join network_assessment_answer_sheet sh on sh.id = r.answer_sheet_id join network_assessment_answer ans on ans.answer_sheet_id = sh.id "
-                        + "join network_assessment_question q on q.id = ans.question_id where r.processing_run_id = ? and r.assessment_id = ?" + scope.sql() + " order by q.sequence_number",
+                        + "join network_assessment_question q on q.id = ans.question_id where r.processing_run_id = ? and r.assessment_id = ?" + scope.sql()
+                        + " order by q.sequence_number",
                 (rs, rowNum) -> new StudentAnswerRow(rs.getInt("sequence_number"), rs.getString("descriptor"), rs.getString("skill"),
                         rs.getString("selected_option"), rs.getString("correct_option"), rs.getBoolean("correct")), params.toArray());
     }
@@ -217,27 +192,20 @@ public class AssessmentReportService {
     public InterventionProfile intervention(long assessmentId, long studentId, Long schoolId, Long classId, Authentication authentication) {
         requireAssessmentVisible(assessmentId, schoolId, authentication);
         List<StudentIdentity> identities = jdbcTemplate.query(
-                "select distinct s.id, s.registration, s.name from network_assessment_assignment aa join student s on s.id = aa.student_id where aa.assessment_id = ? and s.id = ?",
+                "select distinct s.id, s.registration, s.name from network_assessment_assignment aa join student s on s.id = aa.student_id "
+                        + "where aa.assessment_id = ? and s.id = ?",
                 (rs, rowNum) -> new StudentIdentity(rs.getLong("id"), rs.getString("registration"), rs.getString("name")), assessmentId, studentId);
         if (identities.isEmpty()) throw new IllegalArgumentException("Estudante não participa desta avaliação.");
         List<SkillRow> rows = skills(assessmentId, schoolId, classId, studentId, authentication);
-        List<SkillRow> ordered = new ArrayList<>(rows);
-        ordered.sort(Comparator.comparing(SkillRow::correctPercent, Comparator.nullsLast(Comparator.naturalOrder())));
-        List<SkillRow> attention = ordered.stream().limit(Math.min(3, ordered.size())).toList();
-        Collections.reverse(ordered);
-        List<SkillRow> strengths = ordered.stream().limit(Math.min(3, ordered.size())).toList();
-        Long runId = latestRunId(assessmentId);
-        BigDecimal overall = null;
-        if (runId != null) {
-            Scope scope = scope(authentication, schoolId, classId, studentId, "aa");
-            List<Object> params = new ArrayList<>(); params.add(runId); params.add(assessmentId); params.addAll(scope.parameters());
-            Aggregate aggregate = jdbcTemplate.queryForObject(
-                    "select coalesce(sum(r.correct_answers),0) correct_sum, coalesce(sum(r.total_questions),0) total_sum from network_assessment_result r "
-                            + "join network_assessment_assignment aa on aa.id = r.assignment_id where r.processing_run_id = ? and r.assessment_id = ?" + scope.sql(),
-                    (rs, rowNum) -> new Aggregate(rs.getLong("correct_sum"), rs.getLong("total_sum")), params.toArray());
-            if (aggregate != null) overall = percentage(aggregate.correct(), aggregate.total());
-        }
-        return new InterventionProfile(identities.getFirst().studentId(), identities.getFirst().registration(), identities.getFirst().name(), overall,
+        List<SkillRow> ascending = new ArrayList<>(rows);
+        ascending.sort(Comparator.comparing(SkillRow::correctPercent, Comparator.nullsLast(Comparator.naturalOrder())));
+        List<SkillRow> attention = ascending.stream().limit(Math.min(3, ascending.size())).toList();
+        List<SkillRow> descending = new ArrayList<>(ascending);
+        Collections.reverse(descending);
+        List<SkillRow> strengths = descending.stream().limit(Math.min(3, descending.size())).toList();
+        BigDecimal overall = studentOverall(assessmentId, studentId, schoolId, classId, authentication);
+        StudentIdentity identity = identities.getFirst();
+        return new InterventionProfile(identity.studentId(), identity.registration(), identity.name(), overall,
                 classify(overall, performanceLevels(assessmentId)), strengths, attention);
     }
 
@@ -247,63 +215,38 @@ public class AssessmentReportService {
         if (!List.of("NETWORK", "SCHOOL", "CLASS").contains(normalized)) throw new IllegalArgumentException("Nível de participação inválido.");
         Long runId = latestRunId(assessmentId);
         Scope scope = scope(authentication, schoolId, classId, null, "aa");
-        String key;
-        String label;
-        String group;
-        if (normalized.equals("NETWORK")) { key = "0"; label = "'Rede municipal'"; group = ""; }
-        else if (normalized.equals("SCHOOL")) { key = "aa.school_id"; label = "su.name"; group = " group by aa.school_id, su.name"; }
-        else { key = "aa.class_id"; label = "sc.name"; group = " group by aa.class_id, sc.name"; }
-        List<Object> params = new ArrayList<>(); params.add(assessmentId); if (runId != null) params.add(runId); params.addAll(scope.parameters());
+        String key = normalized.equals("NETWORK") ? "0" : normalized.equals("SCHOOL") ? "aa.school_id" : "aa.class_id";
+        String label = normalized.equals("NETWORK") ? "'Rede municipal'" : normalized.equals("SCHOOL") ? "su.name" : "sc.name";
+        String group = normalized.equals("NETWORK") ? "" : normalized.equals("SCHOOL") ? " group by aa.school_id, su.name" : " group by aa.class_id, sc.name";
         String runJoin = runId == null ? "left join network_assessment_result r on 1=0 " : "left join network_assessment_result r on r.assignment_id = aa.id and r.processing_run_id = ? ";
         return jdbcTemplate.query(
-                "select " + key + " key_id, " + label + " label, count(distinct aa.student_id) expected_students, count(distinct case when r.id is not null then aa.student_id end) participants "
+                "select " + key + " key_id, " + label + " label, count(distinct aa.student_id) expected_students, "
+                        + "count(distinct case when r.id is not null then aa.student_id end) participants "
                         + "from network_assessment_assignment aa join school_unit su on su.id = aa.school_id join school_class sc on sc.id = aa.class_id "
                         + runJoin + "where aa.assessment_id = ?" + scope.sql() + group + " order by label",
                 (rs, rowNum) -> { long expected = rs.getLong("expected_students"); long participants = rs.getLong("participants");
                     return new BreakdownRow(rs.getLong("key_id"), rs.getString("label"), participants, expected, percentage(participants, expected)); },
-                reorderParticipationParams(runId, assessmentId, scope.parameters()));
-    }
-
-    private Object[] reorderParticipationParams(Long runId, long assessmentId, List<Object> scopeParams) {
-        List<Object> params = new ArrayList<>();
-        if (runId != null) params.add(runId);
-        params.add(assessmentId);
-        params.addAll(scopeParams);
-        return params.toArray();
-    }
-
-    @Transactional
-    public List<PerformanceLevel> replacePerformanceLevels(long assessmentId, @NotEmpty List<@Valid PerformanceLevelRequest> requests, Authentication authentication) {
-        if (!authentication.isAuthenticated()) throw new AccessDeniedException("Autenticação obrigatória.");
-        if (!new br.com.krino.assessment.AssessmentAccessServiceProxy().unsupported()) { /* nunca executado; mantém este serviço sem dependência circular */ }
-        validateLevels(requests);
-        Integer assessment = jdbcTemplate.queryForObject("select count(*) from network_assessment where id = ?", Integer.class, assessmentId);
-        if (assessment == null || assessment == 0) throw new IllegalArgumentException("Avaliação em Rede não encontrada.");
-        jdbcTemplate.update("delete from network_assessment_performance_level where assessment_id = ?", assessmentId);
-        int order = 1;
-        for (PerformanceLevelRequest request : requests) {
-            jdbcTemplate.update(
-                    "insert into network_assessment_performance_level (assessment_id, label, minimum_percent, maximum_percent, display_order, created_by) values (?, ?, ?, ?, ?, ?)",
-                    assessmentId, request.label().trim(), request.minimumPercent(), request.maximumPercent(), order++, authentication.getName());
-        }
-        return performanceLevels(assessmentId);
+                participationParams(runId, assessmentId, scope.parameters()));
     }
 
     public List<PerformanceLevel> performanceLevels(long assessmentId) {
         return jdbcTemplate.query(
                 "select id, label, minimum_percent, maximum_percent, display_order from network_assessment_performance_level where assessment_id = ? order by display_order",
-                (rs, rowNum) -> new PerformanceLevel(rs.getLong("id"), rs.getString("label"), rs.getBigDecimal("minimum_percent"), rs.getBigDecimal("maximum_percent"), rs.getInt("display_order")), assessmentId);
+                (rs, rowNum) -> new PerformanceLevel(rs.getLong("id"), rs.getString("label"), rs.getBigDecimal("minimum_percent"),
+                        rs.getBigDecimal("maximum_percent"), rs.getInt("display_order")), assessmentId);
     }
 
-    private void validateLevels(List<PerformanceLevelRequest> requests) {
-        List<PerformanceLevelRequest> ordered = new ArrayList<>(requests);
-        ordered.sort(Comparator.comparing(PerformanceLevelRequest::minimumPercent));
-        BigDecimal previousMaximum = null;
-        for (PerformanceLevelRequest request : ordered) {
-            if (request.minimumPercent().compareTo(request.maximumPercent()) > 0) throw new IllegalArgumentException("A faixa mínima não pode superar a faixa máxima.");
-            if (previousMaximum != null && request.minimumPercent().compareTo(previousMaximum) <= 0) throw new IllegalArgumentException("As faixas de desempenho não podem se sobrepor.");
-            previousMaximum = request.maximumPercent();
-        }
+    private BigDecimal studentOverall(long assessmentId, long studentId, Long schoolId, Long classId, Authentication authentication) {
+        Long runId = latestRunId(assessmentId);
+        if (runId == null) return null;
+        Scope scope = scope(authentication, schoolId, classId, studentId, "aa");
+        List<Object> params = new ArrayList<>(); params.add(runId); params.add(assessmentId); params.addAll(scope.parameters());
+        Aggregate aggregate = jdbcTemplate.queryForObject(
+                "select coalesce(sum(r.correct_answers),0) correct_sum, coalesce(sum(r.total_questions),0) total_sum "
+                        + "from network_assessment_result r join network_assessment_assignment aa on aa.id = r.assignment_id "
+                        + "where r.processing_run_id = ? and r.assessment_id = ?" + scope.sql(),
+                (rs, rowNum) -> new Aggregate(rs.getLong("correct_sum"), rs.getLong("total_sum")), params.toArray());
+        return aggregate == null ? null : percentage(aggregate.correct(), aggregate.total());
     }
 
     private void requireAssessmentVisible(long assessmentId, Long schoolId, Authentication authentication) {
@@ -349,9 +292,24 @@ public class AssessmentReportService {
                 .map(PerformanceLevel::label).findFirst().orElse("Não parametrizada");
     }
 
+    private String relativeComplexity(BigDecimal value, BigDecimal min, BigDecimal max) {
+        if (value == null) return "Sem base";
+        if (min != null && max != null && min.compareTo(max) != 0 && value.compareTo(min) == 0) return "Maior dificuldade relativa";
+        if (min != null && max != null && min.compareTo(max) != 0 && value.compareTo(max) == 0) return "Menor dificuldade relativa";
+        return "Intermediária";
+    }
+
     private BigDecimal percentage(long numerator, long denominator) {
         if (denominator == 0) return null;
         return BigDecimal.valueOf(numerator).multiply(BigDecimal.valueOf(100)).divide(BigDecimal.valueOf(denominator), 2, RoundingMode.HALF_UP);
+    }
+
+    private Object[] participationParams(Long runId, long assessmentId, List<Object> scopeParams) {
+        List<Object> params = new ArrayList<>();
+        if (runId != null) params.add(runId);
+        params.add(assessmentId);
+        params.addAll(scopeParams);
+        return params.toArray();
     }
 
     private String placeholders(int size) { return String.join(",", Collections.nCopies(size, "?")); }
@@ -374,9 +332,6 @@ public class AssessmentReportService {
     public record InterventionProfile(long studentId, String registration, String studentName, BigDecimal correctPercent, String performanceLevel,
             List<SkillRow> strengths, List<SkillRow> attentionPriorities) {}
     public record PerformanceLevel(long id, String label, BigDecimal minimumPercent, BigDecimal maximumPercent, int displayOrder) {}
-    public record PerformanceLevelRequest(@NotBlank String label,
-            @NotNull @DecimalMin("0.00") @DecimalMax("100.00") BigDecimal minimumPercent,
-            @NotNull @DecimalMin("0.00") @DecimalMax("100.00") BigDecimal maximumPercent) {}
 
     private record DashboardAggregate(long participants, long correctSum, long totalSum) {}
     private record Aggregate(long correct, long total) {}

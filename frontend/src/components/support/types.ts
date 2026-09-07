@@ -1,0 +1,74 @@
+export type SupportSchool = { id: number; name: string; };
+export type SupportAssessment = { id: number; name: string; schoolId: number; };
+export type SlaPolicy = {
+  severity: 'CRITICAL' | 'MEDIUM' | 'LOW';
+  responseMinutes: number;
+  solutionMinutes: number;
+  countingRule: 'UNDEFINED' | 'ELAPSED' | 'BUSINESS';
+  warningMinutes?: number | null;
+  businessTimezone?: string | null;
+  workdayStart?: string | null;
+  workdayEnd?: string | null;
+  businessDays?: string | null;
+  updatedBy?: string | null;
+  updatedAt?: string | null;
+};
+export type SupportContext = {
+  canManage: boolean;
+  canReport: boolean;
+  canManageSla: boolean;
+  networkManagementView: boolean;
+  schools: SupportSchool[];
+  assessments: SupportAssessment[];
+  slaPolicies: SlaPolicy[];
+};
+export type SupportTicket = {
+  id: number;
+  protocol: string;
+  subject: string;
+  description: string;
+  category: 'SUPPORT' | 'CORRECTIVE' | 'PREVENTIVE' | 'EVOLUTION';
+  severity: 'CRITICAL' | 'MEDIUM' | 'LOW';
+  status: 'OPEN' | 'IN_PROGRESS' | 'WAITING_REQUESTER' | 'RESOLVED' | 'CLOSED';
+  schoolId?: number | null;
+  schoolName?: string | null;
+  assessmentId?: number | null;
+  assessmentName?: string | null;
+  createdByUserId: number;
+  createdByUsername: string;
+  resolution?: string | null;
+  openedAt: string;
+  firstResponseAt?: string | null;
+  resolvedAt?: string | null;
+  closedAt?: string | null;
+  responseMinutes: number;
+  solutionMinutes: number;
+  countingRule: string;
+  warningMinutes?: number | null;
+  responseDueAt?: string | null;
+  solutionDueAt?: string | null;
+  responseSlaState: 'NOT_CONFIGURED' | 'ON_TIME' | 'AT_RISK' | 'BREACHED' | 'MET';
+  solutionSlaState: 'NOT_CONFIGURED' | 'ON_TIME' | 'AT_RISK' | 'BREACHED' | 'MET';
+};
+export type SupportInteraction = {
+  id: number;
+  interactionType: string;
+  actorUsername: string;
+  actorRole: 'REQUESTER' | 'SUPPORT' | 'SYSTEM';
+  message: string;
+  createdAt: string;
+};
+export type SupportTicketDetail = { ticket: SupportTicket; interactions: SupportInteraction[]; canManage: boolean; };
+export type SupportReport = {
+  totals: {
+    total: number;
+    active: number;
+    resolved: number;
+    closed: number;
+    responseBreaches: number;
+    solutionBreaches: number;
+    averageResponseMinutes?: number | null;
+    averageSolutionMinutes?: number | null;
+  };
+  bySeverity: Array<{ severity: 'CRITICAL' | 'MEDIUM' | 'LOW'; total: number; completed: number; responseBreaches: number; solutionBreaches: number; }>;
+};

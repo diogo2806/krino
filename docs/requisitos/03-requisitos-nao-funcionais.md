@@ -60,3 +60,27 @@
 | Baixo | Dúvida, suporte ou ajuste sem comprometer continuidade | até 24h | até 72h |
 
 Durante períodos de avaliação em rede, o suporte deve ser compatível com a criticidade da atividade para não comprometer o cronograma.
+
+### Regra implementada de contagem e rastreabilidade
+
+Os tempos contratuais da tabela acima são fixos no KRINO e não são parâmetros editáveis. A documentação contratual disponível não confirma se a contagem deve usar horas corridas ou horas úteis. Por isso, a política de cada criticidade nasce com `counting_rule = UNDEFINED`.
+
+A Administração pode configurar apenas a forma de contagem:
+
+- `UNDEFINED`: mantém e exibe os tempos contratuais, mas não calcula data/hora de vencimento;
+- `ELAPSED`: contabiliza minutos corridos desde a abertura;
+- `BUSINESS`: contabiliza apenas os dias, jornada e fuso horário explicitamente configurados.
+
+Não existe pausa automática do prazo em `Aguardando solicitante`, porque esse comportamento não está definido nas fontes contratuais. Caso essa regra seja formalmente confirmada, ela deverá ser implementada e documentada de forma explícita.
+
+Cada chamado guarda uma cópia da política de SLA vigente no momento da abertura. Mudanças posteriores da política global não reescrevem os prazos históricos. Quando a criticidade de um chamado em atendimento é alterada, os prazos ainda não cumpridos são recalculados desde a data/hora original de abertura usando a política vigente da nova criticidade, e a mudança fica registrada no histórico.
+
+Estados de acompanhamento dos prazos:
+
+- `NOT_CONFIGURED`: regra de contagem ainda não definida;
+- `ON_TIME`: prazo calculado e ainda dentro da janela;
+- `AT_RISK`: dentro da antecedência de risco configurada;
+- `BREACHED`: prazo calculado ultrapassado;
+- `MET`: etapa concluída dentro do prazo.
+
+O módulo diferencia suporte e orientação, manutenção corretiva, manutenção preventiva e evolução da plataforma. A abertura, interações, alterações de criticidade/status e solução permanecem persistidas e auditáveis.

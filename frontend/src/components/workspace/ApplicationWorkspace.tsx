@@ -1,4 +1,4 @@
-import { Activity, BookOpen, Bus, LogOut, MessagesSquare, ScanLine, School, ShieldCheck, UsersRound } from 'lucide-react';
+import { Activity, BookOpen, Bus, MessagesSquare, ScanLine, School, ShieldCheck, UsersRound } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, apiRequest } from '../../shared/api/client';
 import { AccessControlPage } from '../access-control/AccessControlPage';
@@ -7,6 +7,7 @@ import { Button } from '../button/Button';
 import { DiaryPage } from '../diario/DiaryPage';
 import { FamilyCommunicationPage } from '../family/FamilyCommunicationPage';
 import { FamilyPortalPage } from '../family/FamilyPortalPage';
+import { ApplicationShell, type ApplicationShellNavigationItem } from '../layout/ApplicationShell';
 import { MonitoringPage } from '../monitoring/MonitoringPage';
 import { SecretariaEscolarPage } from '../secretaria/SecretariaEscolarPage';
 import { StateMessage } from '../state/StateMessage';
@@ -53,7 +54,7 @@ export function ApplicationWorkspace({ onLogout }: ApplicationWorkspaceProps) {
 
   if (loading) return <main className="app-page"><StateMessage title="Carregando seu acesso" message="Aguarde enquanto as permissões são verificadas." /></main>;
   if (error) return <main className="app-page"><StateMessage kind="error" title="Não foi possível abrir o KRINO" message={error} /><Button type="button" onClick={() => void loadContext()}>Tentar novamente</Button></main>;
-  if (!context || !module) return <main className="app-page"><StateMessage title="Nenhum módulo disponível" message="Sua conta está ativa, mas ainda não possui permissão para um módulo do sistema." /><Button type="button" variant="ghost" onClick={onLogout}><LogOut aria-hidden="true" size={18} />Sair</Button></main>;
+  if (!context || !module) return <main className="app-page"><StateMessage title="Nenhum módulo disponível" message="Sua conta está ativa, mas ainda não possui permissão para um módulo do sistema." /><Button type="button" variant="ghost" onClick={onLogout}>Sair</Button></main>;
 
   const canSecretaria = context.permissions.some((permission) => permission.startsWith('SCHOOL_'));
   const canDiary = context.permissions.some((permission) => permission.startsWith('DIARY_'));
@@ -64,16 +65,26 @@ export function ApplicationWorkspace({ onLogout }: ApplicationWorkspaceProps) {
   const canTransport = hasTransportAccess(context);
   const canAdmin = context.networkPermissions.some((permission) => ['USER_READ', 'ROLE_READ'].includes(permission));
 
-  return <><nav className="workspace-nav" aria-label="Módulos do KRINO"><div className="workspace-nav__modules">
-    {canSecretaria ? <button className={module === 'secretaria' ? 'workspace-nav__item workspace-nav__item--active' : 'workspace-nav__item'} type="button" onClick={() => setModule('secretaria')}><School aria-hidden="true" size={18} />Secretaria Escolar</button> : null}
-    {canDiary ? <button className={module === 'diario' ? 'workspace-nav__item workspace-nav__item--active' : 'workspace-nav__item'} type="button" onClick={() => setModule('diario')}><BookOpen aria-hidden="true" size={18} />Diário de Classe</button> : null}
-    {canMonitoring ? <button className={module === 'monitoramento' ? 'workspace-nav__item workspace-nav__item--active' : 'workspace-nav__item'} type="button" onClick={() => setModule('monitoramento')}><Activity aria-hidden="true" size={18} />Monitoramento</button> : null}
-    {canAccessControl ? <button className={module === 'acesso' ? 'workspace-nav__item workspace-nav__item--active' : 'workspace-nav__item'} type="button" onClick={() => setModule('acesso')}><ScanLine aria-hidden="true" size={18} />Entrada e Saída</button> : null}
-    {canFamilyCommunication ? <button className={module === 'familias' ? 'workspace-nav__item workspace-nav__item--active' : 'workspace-nav__item'} type="button" onClick={() => setModule('familias')}><MessagesSquare aria-hidden="true" size={18} />Comunicação com Famílias</button> : null}
-    {canFamilyPortal ? <button className={module === 'portal-responsavel' ? 'workspace-nav__item workspace-nav__item--active' : 'workspace-nav__item'} type="button" onClick={() => setModule('portal-responsavel')}><UsersRound aria-hidden="true" size={18} />Portal do Responsável</button> : null}
-    {canTransport ? <button className={module === 'transporte' ? 'workspace-nav__item workspace-nav__item--active' : 'workspace-nav__item'} type="button" onClick={() => setModule('transporte')}><Bus aria-hidden="true" size={18} />Transporte Universitário</button> : null}
-    {canAdmin ? <button className={module === 'admin' ? 'workspace-nav__item workspace-nav__item--active' : 'workspace-nav__item'} type="button" onClick={() => setModule('admin')}><ShieldCheck aria-hidden="true" size={18} />Administração</button> : null}
-  </div>{module !== 'admin' ? <Button type="button" variant="ghost" onClick={onLogout}><LogOut aria-hidden="true" size={18} />Sair</Button> : null}</nav>
-    {module === 'secretaria' ? <SecretariaEscolarPage context={context} onUnauthorized={onLogout} /> : module === 'diario' ? <DiaryPage context={context} onUnauthorized={onLogout} /> : module === 'monitoramento' ? <MonitoringPage context={context} onUnauthorized={onLogout} /> : module === 'acesso' ? <AccessControlPage context={context} onUnauthorized={onLogout} /> : module === 'familias' ? <FamilyCommunicationPage context={context} onUnauthorized={onLogout} /> : module === 'portal-responsavel' ? <FamilyPortalPage context={context} onUnauthorized={onLogout} /> : module === 'transporte' ? <UniversityTransportPage context={context} onUnauthorized={onLogout} /> : <UsersAccessPage onLogout={onLogout} />}
-  </>;
+  const navigationItems: ApplicationShellNavigationItem[] = [];
+  if (canSecretaria) navigationItems.push({ id: 'secretaria', label: 'Secretaria Escolar', icon: <School aria-hidden="true" size={18} />, active: module === 'secretaria', onSelect: () => setModule('secretaria') });
+  if (canDiary) navigationItems.push({ id: 'diario', label: 'Diário de Classe', icon: <BookOpen aria-hidden="true" size={18} />, active: module === 'diario', onSelect: () => setModule('diario') });
+  if (canMonitoring) navigationItems.push({ id: 'monitoramento', label: 'Monitoramento', icon: <Activity aria-hidden="true" size={18} />, active: module === 'monitoramento', onSelect: () => setModule('monitoramento') });
+  if (canAccessControl) navigationItems.push({ id: 'acesso', label: 'Entrada e Saída', icon: <ScanLine aria-hidden="true" size={18} />, active: module === 'acesso', onSelect: () => setModule('acesso') });
+  if (canFamilyCommunication) navigationItems.push({ id: 'familias', label: 'Comunicação com Famílias', icon: <MessagesSquare aria-hidden="true" size={18} />, active: module === 'familias', onSelect: () => setModule('familias') });
+  if (canFamilyPortal) navigationItems.push({ id: 'portal-responsavel', label: 'Portal do Responsável', icon: <UsersRound aria-hidden="true" size={18} />, active: module === 'portal-responsavel', onSelect: () => setModule('portal-responsavel') });
+  if (canTransport) navigationItems.push({ id: 'transporte', label: 'Transporte Universitário', icon: <Bus aria-hidden="true" size={18} />, active: module === 'transporte', onSelect: () => setModule('transporte') });
+  if (canAdmin) navigationItems.push({ id: 'admin', label: 'Administração', icon: <ShieldCheck aria-hidden="true" size={18} />, active: module === 'admin', onSelect: () => setModule('admin') });
+
+  const activeContext = navigationItems.find((item) => item.active)?.label ?? 'Módulos do sistema';
+
+  return (
+    <ApplicationShell
+      contextLabel={activeContext}
+      userName={context.displayName || context.username}
+      navigationItems={navigationItems}
+      onLogout={onLogout}
+    >
+      {module === 'secretaria' ? <SecretariaEscolarPage context={context} onUnauthorized={onLogout} /> : module === 'diario' ? <DiaryPage context={context} onUnauthorized={onLogout} /> : module === 'monitoramento' ? <MonitoringPage context={context} onUnauthorized={onLogout} /> : module === 'acesso' ? <AccessControlPage context={context} onUnauthorized={onLogout} /> : module === 'familias' ? <FamilyCommunicationPage context={context} onUnauthorized={onLogout} /> : module === 'portal-responsavel' ? <FamilyPortalPage context={context} onUnauthorized={onLogout} /> : module === 'transporte' ? <UniversityTransportPage context={context} onUnauthorized={onLogout} /> : <UsersAccessPage onLogout={onLogout} />}
+    </ApplicationShell>
+  );
 }

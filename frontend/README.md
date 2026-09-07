@@ -24,6 +24,35 @@ Toda página nova ou alterada deve exibir no **header** um botão/ícone de Manu
 
 A implementação-base reutilizável fica em `src/components/manual/ScreenManual.tsx`.
 
+## Shell global e navegação
+
+`src/components/layout/ApplicationShell.tsx` é a fonte única do shell autenticado. Ele recebe somente os módulos autorizados pelo contexto carregado em `ApplicationWorkspace`, mantém o módulo atual explícito, identifica o usuário e oferece a saída da sessão.
+
+No desktop, a navegação de módulos permanece visível. Em larguras de até 820 px, ela é recolhida e passa a ser aberta pelo botão de menu do header. O controle usa `aria-label`, `aria-expanded` e `aria-controls`; ao selecionar um módulo ou sair, o menu móvel é fechado. O item ativo usa `aria-current="page"`.
+
+```text
+Desktop
++--------------------------------------------------------------------+
+| KRINO   Módulo atual                                      Usuário  |
++--------------------------------------------------------------------+
+| [Secretaria] [Diário] [Monitoramento] [...]                 [Sair] |
++--------------------------------------------------------------------+
+| Conteúdo da página com PageHeader e Manual da Tela                 |
++--------------------------------------------------------------------+
+
+Mobile
++--------------------------------------+
+| [☰] KRINO                  [Usuário] |
+|     Módulo atual                      |
++--------------------------------------+
+| navegação recolhida                   |
++--------------------------------------+
+| Conteúdo da página         [Manual]  |
++--------------------------------------+
+```
+
+Os estilos do shell e da navegação ficam em `src/shared/styles/layout.css`. Não devem existir regras concorrentes do shell em outros arquivos de estilo.
+
 ## Estados obrigatórios de UX
 
 Toda tela que consulte dados deve prever:

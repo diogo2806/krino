@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,14 +36,17 @@ import br.com.krino.assessment.NetworkAssessmentService.ValidationSummary;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 
+@Validated
 @RestController
 @RequestMapping("/api/assessments")
 public class NetworkAssessmentController {
 
     private final NetworkAssessmentService service;
+    private final AssessmentOccurrenceQueryService occurrenceQueryService;
 
-    public NetworkAssessmentController(NetworkAssessmentService service) {
+    public NetworkAssessmentController(NetworkAssessmentService service, AssessmentOccurrenceQueryService occurrenceQueryService) {
         this.service = service;
+        this.occurrenceQueryService = occurrenceQueryService;
     }
 
     @GetMapping("/catalog")
@@ -124,7 +128,8 @@ public class NetworkAssessmentController {
     @GetMapping("/{assessmentId}/occurrences")
     @PreAuthorize("@authorizationService.hasPermission(authentication, 'ASSESSMENT_READ')")
     public List<OccurrenceView> occurrences(@PathVariable long assessmentId, Authentication authentication) {
-        return service.occurrences(assessmentId, authentication);
+        service.get(assessmentId, authentication);
+        return occurrenceQueryService.list(assessmentId, authentication);
     }
 
     @PostMapping("/{assessmentId}/answer-sheets")

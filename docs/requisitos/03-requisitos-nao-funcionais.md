@@ -60,3 +60,34 @@
 | Baixo | Dúvida, suporte ou ajuste sem comprometer continuidade | até 24h | até 72h |
 
 Durante períodos de avaliação em rede, o suporte deve ser compatível com a criticidade da atividade para não comprometer o cronograma.
+
+### Implementação do canal rastreável
+
+O KRINO implementa o suporte interno por `support_ticket` e `support_ticket_event`. A data/hora de abertura é criada pelo banco e não é alterada pelos fluxos de atualização. Cada interação, mudança de status, mudança de criticidade e registro de solução permanece no histórico cronológico do chamado.
+
+Permissões:
+
+- `SUPPORT_TICKET_CREATE`: abre chamados e consulta/interage somente nos próprios chamados;
+- `SUPPORT_TICKET_MANAGE`: permissão municipal para consultar toda a fila, responder, alterar criticidade/status, registrar solução e visualizar o resumo administrativo.
+
+O backend expõe:
+
+- `GET/POST /api/support/tickets` para a área do solicitante;
+- `GET /api/support/tickets/{id}` e `POST /api/support/tickets/{id}/messages` com validação de propriedade ou gestão municipal;
+- `GET /api/support/admin/tickets`, `PUT /api/support/admin/tickets/{id}` e `GET /api/support/admin/summary` para a equipe autorizada.
+
+Estados implementados: `OPEN` (Aberto), `IN_PROGRESS` (Em atendimento), `WAITING_REQUESTER` (Aguardando solicitante), `RESOLVED` (Resolvido) e `CLOSED` (Encerrado). Marcar como Resolvido ou Encerrado exige solução. Depois de Encerrado o chamado é somente leitura, preservando histórico e solução.
+
+A criticidade determina somente os alvos documentais, sem inventar calendário de contagem:
+
+| Criticidade | Entrada persistida | Alvo de resposta | Alvo de solução |
+|---|---|---:|---:|
+| Crítico | `CRITICAL` | 1h | 4h |
+| Médio | `MEDIUM` | 4h | 24h |
+| Baixo | `LOW` | 24h | 72h |
+
+O sistema registra `opened_at`, `first_support_response_at`, `resolved_at` e `closed_at`, portanto possui os fatos necessários para cálculo posterior. Entretanto, como as fontes não definem se a contagem contratual usa horas úteis ou corridas, `contractualCountingRuleDefined` permanece falso e a interface não apresenta “em risco” ou “vencido” como afirmação contratual. Essa classificação só deve ser implementada quando a regra documental for confirmada.
+
+A interface **Suporte e Chamados** usa componentes de `frontend/src/components/support`, Manual da Tela via `PageHeader` e estilos exclusivamente em `frontend/src/shared/styles/support.css`, carregados pelo ponto único `index.css`. Para usuários comuns, a lista mostra somente os próprios chamados; para `SUPPORT_TICKET_MANAGE`, a mesma área apresenta fila municipal e cards de resumo sem duplicar o histórico operacional.
+
+As operações de abertura, interação e gestão também produzem eventos na trilha de auditoria geral `security_audit_event`, sem copiar o conteúdo integral das mensagens para o log de segurança.

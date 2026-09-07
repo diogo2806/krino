@@ -64,6 +64,60 @@ O Anexo determina que requisito essencial só é aprovado com conceito `ATENDE`;
 | 52 | Atualização e manutenção da plataforma | C |
 | 53 | Desempenho, estabilidade e usabilidade na demonstração | E |
 
+## Implementação do módulo de Avaliação em Rede
+
+Os itens 24 a 40 passaram a utilizar o fluxo web integrado do KRINO. A implementação mantém a parametrização das etapas Diagnóstica, Monitoramento e Final, organização por escola/turma/estudante, presença, identificação de pacotes, Manual do Aplicador, Ata de Ocorrências, segunda chamada, gabaritos, processamento e resultados.
+
+Fluxo operacional:
+
+```text
++----------------------+     +-----------------------+     +----------------------+
+| Avaliação            | --> | Organização          | --> | Aplicação / presença |
+| etapa, ano, série    |     | escola/turma/aluno   |     | materiais e ata      |
++----------------------+     +-----------------------+     +----------+-----------+
+                                                                     |
+                                                                     v
++----------------------+     +-----------------------+     +----------------------+
+| Resultados           | <-- | Processamento        | <-- | Gabaritos            |
+| Rede/Escola/Turma    |     | execução auditável   |     | manual/import/online |
+| Aluno/Habilidade     |     | e reprocessamento    |     | validação prévia     |
++----------+-----------+     +-----------------------+     +----------------------+
+           |
+           v
++----------------------+
+| Monitoramento        |
+| fonte integrada      |
++----------------------+
+```
+
+Regras implementadas para a demonstração:
+
+- os dados brutos de cada gabarito são preservados com hash SHA-256 e origem `MANUAL`, `IMPORT` ou `ONLINE`;
+- uma nova submissão para o mesmo estudante desativa apenas a versão anterior, sem apagar o histórico;
+- falhas de associação com estudante/turma são preservadas separadamente como rejeições de importação;
+- questões e organização não podem ser alteradas depois do recebimento de gabaritos;
+- cada processamento gera uma nova execução numerada e os reprocessamentos não sobrescrevem resultados anteriores;
+- resultados são consolidados pela última execução concluída nos níveis Rede, escola, turma e estudante;
+- habilidade e descritor mantêm acertos, total de questões e percentual de acerto;
+- percentuais usam `acertos / total * 100`, arredondados em duas casas decimais, com `HALF_UP`; base zero não gera divisão por zero;
+- `NetworkAssessmentMetricProvider` disponibiliza a fonte `NETWORK_ASSESSMENT` ao Monitoramento Pedagógico sem duplicar escolas, turmas ou estudantes;
+- operações de criação, organização, artefatos, presença, importação, processamento e reprocessamento são registradas na trilha de auditoria existente;
+- permissões `ASSESSMENT_READ`, `ASSESSMENT_WRITE`, `ASSESSMENT_PROCESS` e `ASSESSMENT_RESULT_READ` respeitam escopo municipal/escolar conforme a operação;
+- a tela **Avaliações em Rede** usa o `PageHeader` reutilizável e, por consequência, mantém o botão **Manual da Tela** com `BookOpen`, `aria-label`, `title` e modal acessível.
+
+Memória de cálculo usada pelo teste automatizado:
+
+```text
+Total de questões = 10
+Acertos = 7
+Percentual de acerto = (7 / 10) * 100 = 70,00%
+
+Habilidade 1: 5 acertos / 5 questões = 100,00%
+Habilidade 2: 2 acertos / 5 questões = 40,00%
+```
+
+Os relatórios pedagógicos, gráficos e dashboards especializados dos itens 37 e 38 usam estes dados como fonte, mas sua apresentação completa permanece no escopo da issue de relatórios e indicadores.
+
 ## Cenário de demonstração recomendado
 
 Usar exclusivamente dados fictícios e preparar um roteiro executável que demonstre:

@@ -94,8 +94,8 @@ public class SupportTicketService {
     @Transactional
     public TicketDetail manage(long ticketId, ManageTicketRequest request, Authentication authentication) {
         TicketView current = ticket(ticketId);
-        if (current.status() == TicketStatus.CLOSED && request.status() != TicketStatus.CLOSED) {
-            throw new IllegalArgumentException("Chamado encerrado não pode ser reaberto por esta operação.");
+        if (current.status() == TicketStatus.CLOSED) {
+            throw new IllegalArgumentException("Chamado encerrado é somente para consulta e não pode ser alterado.");
         }
         String resolution = normalize(request.resolution());
         if ((request.status() == TicketStatus.RESOLVED || request.status() == TicketStatus.CLOSED) && resolution == null) {
@@ -189,7 +189,7 @@ public class SupportTicketService {
         return value.trim();
     }
 
-    private int responseTargetHours(Severity severity) {
+    int responseTargetHours(Severity severity) {
         return switch (severity) {
             case CRITICAL -> 1;
             case MEDIUM -> 4;
@@ -197,7 +197,7 @@ public class SupportTicketService {
         };
     }
 
-    private int solutionTargetHours(Severity severity) {
+    int solutionTargetHours(Severity severity) {
         return switch (severity) {
             case CRITICAL -> 4;
             case MEDIUM -> 24;

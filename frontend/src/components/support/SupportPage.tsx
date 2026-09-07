@@ -30,7 +30,7 @@ const manualSections = [
   { title: 'Campos e filtros', content: 'Status, Criticidade, Unidade escolar e Buscar filtram a lista. O novo chamado possui Assunto, Descrição, Tipo de atendimento, Criticidade, Unidade escolar e, quando aplicável, Avaliação em Rede relacionada.' },
   { title: 'Criticidade', content: 'Crítico: indisponibilidade total ou função essencial sem contorno, com resposta em 1 hora e solução em 4 horas. Médio: falha parcial com alternativa de operação, com resposta em 4 horas e solução em 24 horas. Baixo: dúvida, suporte ou ajuste sem comprometer a continuidade, com resposta em 24 horas e solução em 72 horas.' },
   { title: 'Regra de contagem do prazo', content: 'Os tempos contratuais são fixos. A Administração define apenas se a contagem usa horas corridas, horas úteis com calendário configurado ou se ainda não há regra confirmada. Enquanto estiver não definida, o sistema mostra os tempos contratuais sem inventar uma data de vencimento.' },
-  { title: 'Botões e ações', content: 'Novo chamado abre uma solicitação. Ver detalhes apresenta descrição, prazos, histórico e mensagens. Usuários de atendimento podem alterar Status e Criticidade e registrar a Solução. Configurar regra aparece somente para quem possui permissão administrativa de SLA.' },
+  { title: 'Botões e ações', content: 'Novo chamado abre uma solicitação. Ver detalhes apresenta descrição, prazos, histórico e mensagens. Usuários de atendimento podem alterar Status e Criticidade e registrar a Solução. Configurar regra aparece somente para quem possui permissão administrativa para configurar os prazos.' },
   { title: 'Regras de uso', content: 'A data e hora de abertura não podem ser alteradas. Mudanças de status e criticidade ficam no histórico. Resolver ou encerrar exige solução registrada. Chamados encerrados não recebem novas mensagens. Alterar a política global não modifica retroativamente chamados existentes.' },
   { title: 'Permissões', content: 'SUPPORT_TICKET_CREATE abre chamados; SUPPORT_TICKET_READ consulta o próprio histórico e o escopo autorizado; SUPPORT_TICKET_MANAGE atende chamados; SUPPORT_REPORT_READ consulta indicadores administrativos; SUPPORT_SLA_MANAGE configura a regra de contagem em escopo municipal.' },
   { title: 'Fluxos principais', content: 'Solicitante: abrir chamado, acompanhar estado e trocar mensagens. Atendimento: abrir o chamado, responder, ajustar criticidade quando necessário, atualizar o estado e registrar a solução. Administração: acompanhar indicadores e configurar a forma de contagem dos prazos.' },
@@ -129,7 +129,7 @@ export function SupportPage({ context: _context, onUnauthorized }: Props) {
   const availableTabs = useMemo(() => [
     { value: 'tickets' as const, label: 'Chamados' },
     ...(supportContext?.canReport ? [{ value: 'report' as const, label: 'Indicadores de suporte' }] : []),
-    { value: 'sla' as const, label: 'Prazos e SLA' },
+    { value: 'sla' as const, label: 'Prazos de atendimento' },
   ], [supportContext?.canReport]);
 
   const ticketColumns: DataColumn<SupportTicket>[] = [

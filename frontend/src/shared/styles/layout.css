@@ -13,6 +13,8 @@
 .workspace-nav__item:hover { background: var(--color-primary-soft); }
 .workspace-nav__item:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .workspace-nav__item--active { background: var(--color-primary-soft); color: var(--color-primary); font-weight: 700; }
+.workspace-subnav { width: min(1180px, calc(100% - 32px)); margin: 28px auto -16px; }
+.workspace-subnav .segmented { margin-bottom: 0; }
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
 .page-header__copy { min-width: 0; }
 .page-header__description { margin-bottom: 0; color: var(--color-muted); line-height: 1.5; }
@@ -36,6 +38,7 @@
   .workspace-nav--open { display: flex; }
   .workspace-nav__modules { align-items: stretch; flex-direction: column; }
   .workspace-nav__item { width: 100%; justify-content: flex-start; }
+  .workspace-subnav { width: min(100% - 24px, 1180px); margin-top: 20px; margin-bottom: -8px; }
   .page-header, .toolbar { align-items: stretch; flex-direction: column; }
   .toolbar__filters, .status-grid { grid-template-columns: 1fr; }
   .page-header__actions { justify-content: flex-start; }

@@ -23,11 +23,14 @@ public class ReportExportService {
 
     private final AssessmentReportService reportService;
     private final ReportAccessService accessService;
+    private final ReportFilterService filterService;
     private final CsvWriter csvWriter;
 
-    public ReportExportService(AssessmentReportService reportService, ReportAccessService accessService, CsvWriter csvWriter) {
+    public ReportExportService(AssessmentReportService reportService, ReportAccessService accessService,
+            ReportFilterService filterService, CsvWriter csvWriter) {
         this.reportService = reportService;
         this.accessService = accessService;
+        this.filterService = filterService;
         this.csvWriter = csvWriter;
     }
 
@@ -83,6 +86,7 @@ public class ReportExportService {
             }
             case "STUDENT_ANSWERS" -> {
                 if (studentId == null) throw new IllegalArgumentException("Selecione um estudante para exportar as respostas individuais.");
+                filterService.requireStudentVisible(assessmentId, studentId, schoolId, classId, authentication);
                 suffix = "respostas-do-estudante";
                 rows.add(List.of("Questão", "Descritor", "Habilidade", "Resposta do estudante", "Resposta correta", "Resultado"));
                 for (StudentAnswerRow row : reportService.studentAnswers(assessmentId, studentId, schoolId, classId, authentication)) {
@@ -91,6 +95,7 @@ public class ReportExportService {
             }
             case "INTERVENTION" -> {
                 if (studentId == null) throw new IllegalArgumentException("Selecione um estudante para exportar o perfil de intervenção.");
+                filterService.requireStudentVisible(assessmentId, studentId, schoolId, classId, authentication);
                 suffix = "intervencao-pedagogica";
                 InterventionProfile profile = reportService.intervention(assessmentId, studentId, schoolId, classId, authentication);
                 rows.add(List.of("Estudante", "Matrícula", "Percentual geral de acerto", "Nível de desempenho"));

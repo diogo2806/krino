@@ -18,13 +18,13 @@ import org.springframework.web.bind.annotation.RestController;
 import br.com.krino.support.SupportReportService.SupportReport;
 import br.com.krino.support.SupportService.InteractionRequest;
 import br.com.krino.support.SupportService.InteractionView;
-import br.com.krino.support.SupportService.SlaPolicyRequest;
 import br.com.krino.support.SupportService.SlaPolicyView;
 import br.com.krino.support.SupportService.SupportContext;
 import br.com.krino.support.SupportService.TicketCreateRequest;
 import br.com.krino.support.SupportService.TicketDetail;
 import br.com.krino.support.SupportService.TicketUpdateRequest;
 import br.com.krino.support.SupportService.TicketView;
+import br.com.krino.support.SupportSlaPolicyService.SlaCountingRuleRequest;
 import jakarta.validation.Valid;
 
 @Validated
@@ -34,10 +34,13 @@ public class SupportController {
 
     private final SupportService supportService;
     private final SupportReportService reportService;
+    private final SupportSlaPolicyService slaPolicyService;
 
-    public SupportController(SupportService supportService, SupportReportService reportService) {
+    public SupportController(SupportService supportService, SupportReportService reportService,
+            SupportSlaPolicyService slaPolicyService) {
         this.supportService = supportService;
         this.reportService = reportService;
+        this.slaPolicyService = slaPolicyService;
     }
 
     @GetMapping("/context")
@@ -91,8 +94,8 @@ public class SupportController {
     @PutMapping("/sla-policies/{severity}")
     @PreAuthorize("@authorizationService.hasPermission(authentication, 'SUPPORT_SLA_MANAGE')")
     public SlaPolicyView updateSlaPolicy(@PathVariable String severity,
-            @Valid @RequestBody SlaPolicyRequest request, Authentication authentication) {
-        return supportService.updatePolicy(severity, request, authentication);
+            @Valid @RequestBody SlaCountingRuleRequest request, Authentication authentication) {
+        return slaPolicyService.update(severity, request, authentication);
     }
 
     @GetMapping("/reports")

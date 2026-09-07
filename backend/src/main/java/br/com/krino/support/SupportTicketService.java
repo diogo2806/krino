@@ -135,7 +135,7 @@ public class SupportTicketService {
         String sql = TICKET_SELECT + " where " + ownershipClause
                 + " and (? = '' or t.status = ?) and (? = '' or t.severity = ?)"
                 + " and (? = '' or lower(t.subject) like lower(?) or lower(u.username) like lower(?) or lower(u.display_name) like lower(?))"
-                + " order by case t.severity when 'CRITICAL' then 1 when 'MEDIUM' then 2 else 3 end, t.opened_at desc limit 500";
+                + " order by case t.severity when 'CRITICAL' then 1 when 'MEDIUM' then 2 else 3 end, t.opened_at desc";
         Object[] params = userId == null
                 ? new Object[]{normalizedStatus, normalizedStatus, normalizedSeverity, normalizedSeverity, normalizedSearch, "%" + normalizedSearch + "%", "%" + normalizedSearch + "%", "%" + normalizedSearch + "%"}
                 : new Object[]{userId, normalizedStatus, normalizedStatus, normalizedSeverity, normalizedSeverity, normalizedSearch, "%" + normalizedSearch + "%", "%" + normalizedSearch + "%", "%" + normalizedSearch + "%"};

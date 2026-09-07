@@ -1,10 +1,18 @@
 package br.com.krino.audit;
 
+import java.util.regex.Pattern;
+
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
 public class SecurityAuditService {
+
+    private static final int MAX_DETAILS_LENGTH = 1000;
+    private static final Pattern AUTHORIZATION_VALUE = Pattern.compile("(?i)(authorization)(\\s*[:=]\\s*)([^,;]+)");
+    private static final Pattern BEARER_TOKEN = Pattern.compile("(?i)\\bBearer\\s+[A-Za-z0-9._~+/=-]+");
+    private static final Pattern SENSITIVE_VALUE = Pattern.compile(
+            "(?i)(password|senha|token|secret|segredo|credential|credencial)(\\s*[\\\"']?\\s*[:=]\\s*[\\\"']?|\\s+)([^\\s,;\\\"']+)");
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -19,6 +27,16 @@ public class SecurityAuditService {
                 action,
                 targetType,
                 targetReference,
-                details);
+                sanitizeDetails(details));
+    }
+
+    String sanitizeDetails(String details) {
+        if (details == null || details.isBlank()) {
+            return details;
+        }
+        String sanitized = AUTHORIZATION_VALUE.matcher(details).replaceAll("$1=[REDACTED]");
+        sanitized = BEARER_TOKEN.matcher(sanitized).replaceAll("Bearer [REDACTED]");
+        sanitized = SENSITIVE_VALUE.matcher(sanitized).replaceAll("$1=[REDACTED]");
+        return sanitized.length() <= MAX_DETAILS_LENGTH ? sanitized : sanitized.substring(0, MAX_DETAILS_LENGTH);
     }
 }

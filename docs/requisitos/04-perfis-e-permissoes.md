@@ -14,7 +14,7 @@ As fontes citam expressamente funções como direção escolar, secretaria escol
 | Responsável legal | dados dos estudantes vinculados: boletim, frequência, mensagens/notificações |
 | Estudante do transporte | solicitação, documentos, acompanhamento e carteirinha do transporte |
 | Operador de avaliação | preparação/parametrização, processamento e resultados conforme permissão |
-| Fiscal/Auditoria | consulta de logs, relatórios e evidências de execução conforme autorização |
+| Fiscal/Auditoria | consulta de logs, relatórios, evidências e exportação administrativa conforme autorização |
 
 ## Regras
 
@@ -24,6 +24,7 @@ As fontes citam expressamente funções como direção escolar, secretaria escol
 4. Professor só edita diário sob sua responsabilidade.
 5. Operações sensíveis devem ser auditadas.
 6. Perfis e permissões devem ser configuráveis para acomodar variações definidas pela Secretaria.
+7. Consulta de auditoria e exportação administrativa exigem permissões municipais específicas e não podem depender apenas da visibilidade do frontend.
 
 ## Implementação no KRINO
 
@@ -80,6 +81,21 @@ O perfil-base **SME / Técnico da Secretaria** recebe as permissões de análise
 
 Foto e comprovante de matrícula permanecem em endpoint autenticado. O frontend carrega esses arquivos com o token da sessão; não existe URL pública de documento. Negativa e solicitação de ajuste exigem motivo, e a emissão da carteirinha depende de solicitação aprovada, validade vigente e arte aprovada pela SEDUC.
 
+### Auditoria e portabilidade
+
+O domínio administrativo usa duas permissões municipais específicas:
+
+- `AUDIT_READ`: permite consultar `GET /api/admin/audit`, com filtros opcionais de período, usuário e ação registrada;
+- `DATA_EXPORT`: permite solicitar `GET /api/admin/data-export` e gerar a exportação estruturada em JSON.
+
+As permissões são atribuídas inicialmente aos perfis-base **Administrador do sistema** e **Fiscal/Auditoria** pela migration `V9__audit_and_portability.sql`. Como os perfis permanecem configuráveis, a Administração pode posteriormente ajustar essas permissões sem alterar o contrato dos endpoints.
+
+A exportação administrativa percorre as tabelas públicas da aplicação e preserva os dados necessários à portabilidade, mas exclui automaticamente colunas cujo nome indique senha, token, segredo ou credencial. Isso cobre, entre outros, `app_user.password_hash` e `student_access_credential.credential_token`. O arquivo informa quais colunas sensíveis foram omitidas. O ato de exportar gera o evento `ADMINISTRATION_DATA_EXPORTED` na trilha de auditoria.
+
+O `SecurityAuditService` também aplica sanitização central ao campo textual `details`, substituindo valores associados a senha, token, segredo, credencial ou cabeçalho de autorização por `[REDACTED]` antes da persistência. A trilha deve explicar a operação, não reproduzir segredo ou credencial.
+
+A tela **Administração > Auditoria e dados** reflete `AUDIT_READ` e `DATA_EXPORT`, possui Manual da Tela no header e diferencia consulta, exportação, carregamento, vazio, acesso não permitido e falha. O backend continua sendo a fonte de autorização.
+
 ### Operações administrativas
 
 São auditadas na tabela `security_audit_event`, no mínimo: criação/alteração/desativação de usuário, redefinição de senha por administrador, atribuição/remoção de perfil, criação/alteração/exclusão de perfil, alteração das permissões de um perfil e vínculo/desvínculo de responsável com estudante. Senhas e tokens não são registrados no evento.
@@ -88,6 +104,16 @@ No Transporte Universitário também são auditadas criação e alteração da s
 
 O primeiro administrador pode ser criado somente quando a base não possui usuários, por `BOOTSTRAP_ADMIN_USERNAME` e `BOOTSTRAP_ADMIN_PASSWORD`. Não existe credencial administrativa padrão versionada.
 
+### Backup e recuperação no ambiente de execução
+
+O KRINO é implantado em serviços separados no EasyPanel e utiliza PostgreSQL como serviço externo ao container da aplicação. Por isso, agendamento, retenção e armazenamento físico de backup pertencem ao serviço PostgreSQL/EasyPanel e não a um workflow do repositório.
+
+A implantação deve configurar backup periódico do PostgreSQL em destino distinto da instância primária, conforme a política operacional definida para o contrato. A recuperação deve ser executada primeiro em banco isolado, validar a integridade do dump/backup, iniciar o backend apontando para a base restaurada e permitir que o Flyway valide/aplique somente migrations pendentes. Depois da restauração devem ser verificados autenticação, leitura de dados essenciais, `GET /api/health` e acesso autorizado à auditoria.
+
+Para portabilidade independente do mecanismo de backup, a aplicação fornece a exportação administrativa JSON. Backup/restore continua sendo mecanismo de recuperação integral do banco; a exportação JSON é um mecanismo adicional de entrega e portabilidade e não substitui o backup operacional.
+
+Credenciais do PostgreSQL, `JWT_SECRET` e demais segredos continuam fornecidos apenas por variáveis do ambiente. Arquivos de backup e exportação devem permanecer em armazenamento autorizado pela Administração e não devem ser versionados no repositório.
+
 ### Interface
 
 A tela **Usuários e acessos** consulta o contexto efetivo de permissões municipais antes de apresentar seções e ações. O botão **Vincular estudantes** aparece somente quando a conta selecionada possui perfil com `STUDENT_LINKED_READ` e o operador possui `SCOPE_ASSIGN`.
@@ -95,5 +121,7 @@ A tela **Usuários e acessos** consulta o contexto efetivo de permissões munici
 O **Portal do Responsável** aparece para contas com `STUDENT_LINKED_READ`; o conteúdo de cada estudante continua condicionado ao vínculo individual validado no backend. A tela **Comunicação com Famílias** aparece conforme `FAMILY_COMMUNICATION_READ`/`FAMILY_COMMUNICATION_WRITE` no escopo autorizado.
 
 O **Transporte Universitário** aparece quando a conta possui alguma permissão `TRANSPORT_*`. Para estudantes, a tela apresenta somente o fluxo próprio. Para a SEDUC, apresenta a fila, decisões e, quando autorizado, a configuração da arte. O Manual da Tela permanece no header por meio do componente compartilhado `PageHeader`/`ScreenManual`.
+
+A **Administração** aparece quando a conta possui permissão para usuários/perfis ou `AUDIT_READ`/`DATA_EXPORT`. Quando houver mais de uma área administrativa disponível, `AdminWorkspace` apresenta a subnavegação **Usuários e acessos** / **Auditoria e dados** sem duplicar contratos ou regras de autorização.
 
 Usuários sem autorização recebem estado explícito “Acesso não permitido”. O frontend reduz ações disponíveis, mas o backend continua autorizando cada endpoint protegido.

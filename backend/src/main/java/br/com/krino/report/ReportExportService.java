@@ -75,8 +75,9 @@ public class ReportExportService {
             }
             case "PARTICIPATION" -> {
                 suffix = "participacao";
+                String level = schoolId == null ? "SCHOOL" : "CLASS";
                 rows.add(List.of("Nível", "Participantes", "Base de estudantes", "Percentual de participação"));
-                for (BreakdownRow row : reportService.participation(assessmentId, classId == null ? "SCHOOL" : "CLASS", schoolId, classId, authentication)) {
+                for (BreakdownRow row : reportService.participation(assessmentId, level, schoolId, classId, authentication)) {
                     rows.add(List.of(row.label(), row.participants(), row.expectedStudents(), decimal(row.percentage())));
                 }
             }

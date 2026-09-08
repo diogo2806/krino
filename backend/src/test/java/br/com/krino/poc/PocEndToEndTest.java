@@ -277,6 +277,12 @@ class PocEndToEndTest {
         JsonNode dashboard = getJson("/api/reports/assessments/" + assessmentId + "/dashboard", adminToken);
         assertThat(dashboard.get("achievementPercent").decimalValue()).isEqualByComparingTo("70.00");
 
+        JsonNode monitoring = getJson("/api/pedagogical-monitoring/summary?year=" + YEAR, adminToken);
+        JsonNode networkAssessmentMetric = findNodeBy(monitoring.get("sources"), "sourceCode", "NETWORK_ASSESSMENT");
+        assertThat(networkAssessmentMetric.get("totalStudents").asInt()).isEqualTo(10);
+        assertThat(networkAssessmentMetric.get("studentsWithResults").asInt()).isEqualTo(10);
+        assertThat(networkAssessmentMetric.get("achievementPercent").decimalValue()).isEqualByComparingTo("70.00");
+
         MvcResult export = mockMvc.perform(get("/api/reports/assessments/{assessmentId}/export", assessmentId)
                         .param("report", "QUESTIONS")
                         .header(HttpHeaders.AUTHORIZATION, bearer(adminToken)))
@@ -305,8 +311,12 @@ class PocEndToEndTest {
     }
 
     private long findIdBy(JsonNode array, String field, String expected) {
+        return findNodeBy(array, field, expected).path("id").asLong();
+    }
+
+    private JsonNode findNodeBy(JsonNode array, String field, String expected) {
         for (JsonNode item : array) {
-            if (expected.equals(item.path(field).asText())) return item.path("id").asLong();
+            if (expected.equals(item.path(field).asText())) return item;
         }
         throw new AssertionError("Item não encontrado: " + field + "=" + expected);
     }

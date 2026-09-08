@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -72,7 +71,6 @@ class PocEndToEndTest {
     void deveExecutarCenarioIntegradoDaPocComDadosFicticiosECalculoConhecido() throws Exception {
         String adminToken = login(ADMIN_USERNAME, ADMIN_PASSWORD);
 
-        // Autenticação não é contornada: sem JWT a API protegida continua bloqueada.
         mockMvc.perform(get("/api/secretaria/schools"))
                 .andExpect(status().isUnauthorized());
 
@@ -126,7 +124,6 @@ class PocEndToEndTest {
             enrollmentIds.add(enrollmentId);
         }
 
-        // Mantém a segunda escola com dados reais no cenário e valida isolamento de escopo.
         long schoolBStudent = postJson("/api/secretaria/students", adminToken, Map.of(
                 "schoolId", schoolB, "registration", "ALUNO-POC-B-001", "name", "Estudante POC Escola B", "birthDate", "2013-06-01",
                 "guardianName", "Responsável Escola B", "guardianProfession", "Profissão fictícia")).get("id").asLong();
@@ -153,7 +150,6 @@ class PocEndToEndTest {
         String guardianToken = login("poc.responsavel", USER_PASSWORD);
         String transportToken = login("poc.transporte", USER_PASSWORD);
 
-        // O professor tem escopo somente na escola A e não consegue consultar a escola B.
         mockMvc.perform(get("/api/secretaria/students")
                         .param("schoolId", Long.toString(schoolB))
                         .param("year", Integer.toString(YEAR))
@@ -185,9 +181,8 @@ class PocEndToEndTest {
                 + "&year=" + YEAR + "&studentId=" + studentIds.getFirst(), adminToken);
         assertThat(schoolDocument.get("type").asText()).isEqualTo("ENROLLMENT_DECLARATION");
 
-        // Controle de acesso: cartão, identificação e sincronização offline idempotente.
         JsonNode card = putJson("/api/access-control/students/" + studentIds.getFirst() + "/card", adminToken, Map.of());
-        String accessCode = card.get("code").asText();
+        String accessCode = card.get("qrPayload").asText();
         JsonNode identified = postJson("/api/access-control/identify", adminToken, Map.of("code", accessCode));
         assertThat(identified.get("studentId").asLong()).isEqualTo(studentIds.getFirst());
 
@@ -207,18 +202,16 @@ class PocEndToEndTest {
         assertThat(firstSync.get(0).get("duplicate").asBoolean()).isFalse();
         assertThat(secondSync.get(0).get("duplicate").asBoolean()).isTrue();
 
-        // Portal do responsável usa o vínculo real e apresenta avaliação/frequência do estudante vinculado.
         JsonNode linkedStudents = getJson("/api/family-portal/students", guardianToken);
         assertThat(linkedStudents.size()).isEqualTo(1);
         assertThat(linkedStudents.get(0).get("id").asLong()).isEqualTo(studentIds.getFirst());
         JsonNode reportCard = getJson("/api/family-portal/students/" + studentIds.getFirst() + "/report-card?year=" + YEAR + "&period=1", guardianToken);
         assertThat(reportCard.get("assessments").size()).isEqualTo(1);
         JsonNode familyAttendance = getJson("/api/family-portal/students/" + studentIds.getFirst() + "/attendance?year=" + YEAR + "&period=1", guardianToken);
-        assertThat(familyAttendance.get("totalLessons").asInt()).isEqualTo(1);
+        assertThat(familyAttendance.get("classesCount").asInt()).isEqualTo(1);
         JsonNode accessNotifications = getJson("/api/family-portal/students/" + studentIds.getFirst() + "/notifications", guardianToken);
-        assertThat(accessNotifications).isNotEmpty();
+        assertThat(accessNotifications.size()).isGreaterThanOrEqualTo(1);
 
-        // Transporte universitário: solicitar, anexar documentos, submeter, analisar, aprovar e emitir carteirinha.
         JsonNode transportRequest = postJson("/api/transport/requests", transportToken, Map.of(
                 "fullName", "Estudante Transporte POC",
                 "personalDocument", "DOC-POC-0001",
@@ -239,7 +232,6 @@ class PocEndToEndTest {
         JsonNode transportCard = getJson("/api/transport/card", transportToken);
         assertThat(transportCard.get("request").get("status").asText()).isEqualTo("APPROVED");
 
-        // Avaliação em rede com resultado conhecido: 10 gabaritos válidos, 7 acertos e 3 erros em Q1.
         long assessmentId = postJson("/api/assessments", adminToken, Map.of(
                 "name", "Avaliação Diagnóstica POC 2026",
                 "stage", "DIAGNOSTIC",
@@ -272,7 +264,7 @@ class PocEndToEndTest {
         assertThat(processing.get("status").asText()).isEqualTo("COMPLETED");
 
         JsonNode networkResults = getJson("/api/assessments/" + assessmentId + "/results?level=NETWORK", adminToken);
-        assertThat(networkResults).hasSize(1);
+        assertThat(networkResults.size()).isEqualTo(1);
         assertThat(networkResults.get(0).get("students").asInt()).isEqualTo(10);
         assertThat(networkResults.get(0).get("correctAnswers").asInt()).isEqualTo(7);
         assertThat(networkResults.get(0).get("totalQuestions").asInt()).isEqualTo(10);
@@ -283,10 +275,10 @@ class PocEndToEndTest {
         getJson("/api/assessments/" + assessmentId + "/results?level=STUDENT&studentId=" + studentIds.getFirst(), adminToken);
 
         JsonNode dashboard = getJson("/api/reports/assessments/" + assessmentId + "/dashboard", adminToken);
-        assertThat(dashboard.get("scorePercent").decimalValue()).isEqualByComparingTo("70.00");
+        assertThat(dashboard.get("achievementPercent").decimalValue()).isEqualByComparingTo("70.00");
 
         MvcResult export = mockMvc.perform(get("/api/reports/assessments/{assessmentId}/export", assessmentId)
-                        .param("report", "dashboard")
+                        .param("report", "QUESTIONS")
                         .header(HttpHeaders.AUTHORIZATION, bearer(adminToken)))
                 .andExpect(status().isOk())
                 .andReturn();

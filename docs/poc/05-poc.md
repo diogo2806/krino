@@ -105,18 +105,23 @@ Regras implementadas para a demonstração:
 - permissões `ASSESSMENT_READ`, `ASSESSMENT_WRITE`, `ASSESSMENT_PROCESS` e `ASSESSMENT_RESULT_READ` respeitam escopo municipal/escolar conforme a operação;
 - a tela **Avaliações em Rede** usa o `PageHeader` reutilizável e, por consequência, mantém o botão **Manual da Tela** com `BookOpen`, `aria-label`, `title` e modal acessível.
 
-Memória de cálculo usada pelo teste automatizado:
+Memória de cálculo usada pelo cenário POC automatizado:
 
 ```text
-Total de questões = 10
-Acertos = 7
-Percentual de acerto = (7 / 10) * 100 = 70,00%
+Gabaritos válidos = 10
+Questões por gabarito = 1
+Respostas válidas da Q1 = 10
+Alternativa correta da Q1 = A
+Respostas corretas = 7
+Respostas incorretas = 3
 
-Habilidade 1: 5 acertos / 5 questões = 100,00%
-Habilidade 2: 2 acertos / 5 questões = 40,00%
+Percentual de acerto = (7 / 10) * 100
+Percentual de acerto = 70,00%
+
+Arredondamento = 2 casas decimais, HALF_UP
 ```
 
-Os relatórios pedagógicos, gráficos e dashboards especializados dos itens 37 e 38 usam estes dados como fonte, mas sua apresentação completa permanece no escopo da issue de relatórios e indicadores.
+Os relatórios pedagógicos, gráficos e dashboards especializados dos itens 37 e 38 usam estes dados como fonte.
 
 ## Implementação dos itens 51 e 52 - Suporte e manutenção
 
@@ -167,6 +172,60 @@ Usar exclusivamente dados fictícios e preparar um roteiro executável que demon
 9. visualizar resultados nos quatro níveis exigidos;
 10. demonstrar relatório, dashboard, logs, backup/recuperação e exportação aberta;
 11. abrir e acompanhar um chamado de suporte, registrar atendimento, solução e consultar os indicadores correspondentes.
+
+## Cenário integrado automatizado
+
+O cenário reproduzível da issue #15 está em `backend/src/test/java/br/com/krino/poc/PocEndToEndTest.java`. Ele não injeta seed na aplicação e não cria endpoint administrativo exclusivo para teste. Toda a massa funcional é criada durante o teste pelas APIs reais do KRINO, com autenticação JWT, autorização e validações habilitadas.
+
+A execução usa PostgreSQL 16 real em container descartável com Flyway, iniciado por Testcontainers. O banco existe somente durante o teste e não utiliza `DB_URL`, credenciais, usuários ou dados da VPS/EasyPanel.
+
+Pré-requisitos locais:
+
+- JDK 21;
+- Maven;
+- Docker Engine disponível para o Testcontainers.
+
+Execução a partir de `backend/`:
+
+```bash
+mvn -Dtest=PocEndToEndTest test
+```
+
+A massa criada é exclusivamente fictícia e possui nomes/códigos estáveis para facilitar diagnóstico:
+
+- escolas `POC-EM-01` e `POC-EM-02`;
+- turmas fictícias `7º A` e `7º B` no ano letivo de 2026;
+- professor `PROF-POC-001` com conta de perfil escolar;
+- 10 estudantes `ALUNO-POC-001` a `ALUNO-POC-010` na turma principal e um estudante adicional na segunda escola;
+- responsável `poc.responsavel` vinculado somente ao primeiro estudante;
+- estudante do transporte `poc.transporte`;
+- avaliação `Avaliação Diagnóstica POC 2026` com uma questão de alternativa correta `A` e 10 gabaritos conhecidos;
+- evento offline com `clientEventId` fixo para provar idempotência e não duplicidade.
+
+O fluxo automatizado valida:
+
+1. bloqueio de API protegida sem JWT;
+2. criação de duas escolas e duas turmas;
+3. cadastro de professor, 11 estudantes e matrículas;
+4. atribuição docente, calendário e horário;
+5. usuário professor com escopo apenas da escola A e bloqueio ao tentar consultar a escola B;
+6. Diário de Classe, conteúdo e frequência em data letiva/horário válidos;
+7. avaliação do Diário e nota visível ao responsável;
+8. emissão de declaração de matrícula;
+9. emissão de QR, identificação do estudante e sincronização offline repetida sem duplicar evento;
+10. notificação interna e frequência consultadas pelo responsável vinculado;
+11. solicitação de transporte, anexos fictícios, submissão, análise, aprovação, arte e carteirinha;
+12. criação, organização, importação, validação e processamento da Avaliação em Rede;
+13. resultados de Rede, escola, turma e estudante;
+14. cálculo conhecido de `7 / 10 * 100 = 70,00%` no resultado consolidado e no dashboard;
+15. exportação CSV em formato aberto;
+16. exportação administrativa e presença das ações relevantes na auditoria.
+
+A repetibilidade vem do banco novo por execução: o teste sempre começa em uma instância PostgreSQL vazia, aplica as mesmas migrations e recria a mesma massa pelas APIs. Nenhuma fixture é carregada automaticamente em produção.
+
+### Fronteira do item 49 - backup e recuperação
+
+Backup e recuperação pertencem à operação do PostgreSQL e dos serviços na arquitetura real de VPS/EasyPanel, não a um endpoint de negócio do KRINO. Por isso o teste E2E do repositório não simula `pg_dump`, restore ou snapshot e não cria workflow de infraestrutura. Na demonstração do item 49 deve ser apresentado o mecanismo operacional configurado no ambiente de produção/homologação e uma recuperação controlada conforme o procedimento da infraestrutura. Isso não altera a massa fictícia nem relaxa os demais critérios automatizados.
 
 ## Restrição da POC
 

@@ -6,10 +6,11 @@ type PageHeaderProps = {
   title: string;
   description?: string;
   manualSections: ManualSection[];
+  manualScreenName?: string;
   actions?: ReactNode;
 };
 
-export function PageHeader({ eyebrow, title, description, manualSections, actions }: PageHeaderProps) {
+export function PageHeader({ eyebrow, title, description, manualSections, manualScreenName, actions }: PageHeaderProps) {
   return (
     <header className="page-header">
       <div className="page-header__copy">
@@ -19,7 +20,7 @@ export function PageHeader({ eyebrow, title, description, manualSections, action
       </div>
       <div className="page-header__actions">
         {actions}
-        <ScreenManual screenName={title} sections={manualSections} />
+        <ScreenManual screenName={manualScreenName ?? title} sections={manualSections} />
       </div>
     </header>
   );

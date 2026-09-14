@@ -7,6 +7,7 @@ import type { QuestionInput, QuestionView } from './types';
 
 type Props = {
   questions: QuestionView[];
+  disabled?: boolean;
   onSave: (questions: QuestionInput[]) => Promise<void>;
 };
 
@@ -19,24 +20,17 @@ type DraftQuestion = {
 };
 
 function toDraft(question: QuestionView, key: number): DraftQuestion {
-  return {
-    key,
-    sequenceNumber: question.sequenceNumber.toString(),
-    descriptor: question.descriptor,
-    skill: question.skill,
-    correctOption: question.correctOption,
-  };
+  return { key, sequenceNumber: question.sequenceNumber.toString(), descriptor: question.descriptor, skill: question.skill, correctOption: question.correctOption };
 }
 
-export function AssessmentQuestionEditor({ questions, onSave }: Props) {
+export function AssessmentQuestionEditor({ questions, disabled = false, onSave }: Props) {
   const nextKey = useRef(1);
   const [rows, setRows] = useState<DraftQuestion[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const nextRows = questions.map((question) => toDraft(question, nextKey.current++));
-    setRows(nextRows);
+    setRows(questions.map((question) => toDraft(question, nextKey.current++)));
     setErrors([]);
   }, [questions]);
 
@@ -54,7 +48,6 @@ export function AssessmentQuestionEditor({ questions, onSave }: Props) {
   const validate = () => {
     const messages: string[] = [];
     const sequences = new Map<number, number[]>();
-
     if (rows.length === 0) messages.push('Adicione ao menos uma questão antes de salvar.');
 
     rows.forEach((row, index) => {
@@ -73,20 +66,13 @@ export function AssessmentQuestionEditor({ questions, onSave }: Props) {
     sequences.forEach((positions, sequence) => {
       if (positions.length > 1) messages.push(`Número ${sequence}: está repetido nas questões ${positions.join(' e ')}.`);
     });
-
     setErrors(messages);
     return messages.length === 0;
   };
 
   const save = async () => {
-    if (!validate()) return;
-    const payload: QuestionInput[] = rows.map((row) => ({
-      sequenceNumber: Number(row.sequenceNumber),
-      descriptor: row.descriptor.trim(),
-      skill: row.skill.trim(),
-      correctOption: row.correctOption.trim().toUpperCase(),
-    }));
-
+    if (disabled || !validate()) return;
+    const payload: QuestionInput[] = rows.map((row) => ({ sequenceNumber: Number(row.sequenceNumber), descriptor: row.descriptor.trim(), skill: row.skill.trim(), correctOption: row.correctOption.trim().toUpperCase() }));
     setSaving(true);
     try {
       await onSave(payload);
@@ -101,29 +87,27 @@ export function AssessmentQuestionEditor({ questions, onSave }: Props) {
   return (
     <section className="assessment-editor" aria-labelledby="assessment-question-editor-title">
       <div className="assessment-section__heading">
-        <div>
-          <h3 id="assessment-question-editor-title">Questões e habilidades</h3>
-          <p>Adicione as questões da avaliação e informe descritor, habilidade e alternativa correta.</p>
-        </div>
-        <Button type="button" variant="ghost" onClick={addQuestion}><Plus aria-hidden="true" size={17} />Adicionar questão</Button>
+        <div><h3 id="assessment-question-editor-title">Questões e habilidades</h3><p>Adicione as questões da avaliação e informe descritor, habilidade e alternativa correta.</p></div>
+        <Button type="button" variant="ghost" disabled={disabled} onClick={addQuestion}><Plus aria-hidden="true" size={17} />Adicionar questão</Button>
       </div>
 
+      {disabled ? <StateMessage title="Edição de questões bloqueada" message="Esta avaliação já recebeu respostas. As questões e o gabarito oficial permanecem somente para consulta para preservar o histórico." /> : null}
       {errors.length ? <StateMessage kind="error" title="Revise as questões" message={errors.join(' ')} /> : null}
       {rows.length === 0 ? <StateMessage title="Nenhuma questão adicionada" message="Use Adicionar questão para começar a configurar o gabarito oficial." /> : null}
 
       <div className="assessment-question-list">
         {rows.map((row, index) => (
           <article className="assessment-question-row" key={row.key}>
-            <TextField name={`questionSequence-${row.key}`} label="Número" type="number" min={1} value={row.sequenceNumber} onChange={(event) => updateQuestion(row.key, 'sequenceNumber', event.target.value)} aria-label={`Número da questão ${index + 1}`} required />
-            <TextField name={`questionDescriptor-${row.key}`} label="Descritor" maxLength={180} value={row.descriptor} onChange={(event) => updateQuestion(row.key, 'descriptor', event.target.value)} required />
-            <TextField name={`questionSkill-${row.key}`} label="Habilidade" maxLength={300} value={row.skill} onChange={(event) => updateQuestion(row.key, 'skill', event.target.value)} required />
-            <TextField name={`questionCorrect-${row.key}`} label="Alternativa correta" maxLength={20} value={row.correctOption} onChange={(event) => updateQuestion(row.key, 'correctOption', event.target.value.toUpperCase())} required />
-            <Button type="button" variant="ghost" className="assessment-question-remove" aria-label={`Remover questão ${row.sequenceNumber || index + 1}`} title={`Remover questão ${row.sequenceNumber || index + 1}`} onClick={() => setRows((current) => current.filter((item) => item.key !== row.key))}><Trash2 aria-hidden="true" size={17} />Remover</Button>
+            <TextField name={`questionSequence-${row.key}`} label="Número" type="number" min={1} value={row.sequenceNumber} disabled={disabled} onChange={(event) => updateQuestion(row.key, 'sequenceNumber', event.target.value)} aria-label={`Número da questão ${index + 1}`} required />
+            <TextField name={`questionDescriptor-${row.key}`} label="Descritor" maxLength={180} value={row.descriptor} disabled={disabled} onChange={(event) => updateQuestion(row.key, 'descriptor', event.target.value)} required />
+            <TextField name={`questionSkill-${row.key}`} label="Habilidade" maxLength={300} value={row.skill} disabled={disabled} onChange={(event) => updateQuestion(row.key, 'skill', event.target.value)} required />
+            <TextField name={`questionCorrect-${row.key}`} label="Alternativa correta" maxLength={20} value={row.correctOption} disabled={disabled} onChange={(event) => updateQuestion(row.key, 'correctOption', event.target.value.toUpperCase())} required />
+            <Button type="button" variant="ghost" className="assessment-question-remove" disabled={disabled} aria-label={`Remover questão ${row.sequenceNumber || index + 1}`} title={`Remover questão ${row.sequenceNumber || index + 1}`} onClick={() => setRows((current) => current.filter((item) => item.key !== row.key))}><Trash2 aria-hidden="true" size={17} />Remover</Button>
           </article>
         ))}
       </div>
 
-      <div className="assessment-actions"><Button type="button" variant="primary" disabled={saving} onClick={() => void save()}>{saving ? 'Salvando questões...' : 'Salvar questões e gabarito oficial'}</Button></div>
+      <div className="assessment-actions"><Button type="button" variant="primary" disabled={disabled || saving} onClick={() => void save()}>{saving ? 'Salvando questões...' : 'Salvar questões e gabarito oficial'}</Button></div>
     </section>
   );
 }

@@ -20,8 +20,8 @@ type Props = {
 const manualSections = [
   { title: 'Finalidade', content: 'Apresentar ao gestor municipal, em uma única visão, os principais sinais da Rede que exigem atenção, os resultados pedagógicos disponíveis e a próxima ação recomendada em cada área.' },
   { title: 'Indicadores', content: 'Resultado da Rede reutiliza a consolidação do Monitoramento Pedagógico. Cobertura mostra estudantes com resultado sobre a base da fonte selecionada. Aproveitamento observado usa a regra da própria fonte e não cria cálculo novo nesta tela.' },
-  { title: 'Prioridades', content: 'Avaliações em Rede usam os estados reais do ciclo para destacar preparação, aplicação, processamento e resultados. Suporte usa o consolidado autorizado de chamados e prazos. A ausência de dados não é transformada em alerta artificial.' },
-  { title: 'Botões e ações', content: 'Ver prioridades abre o Monitoramento Pedagógico. Organizar, Processar, Acompanhar ou Ver avaliações abre Avaliações em Rede. Ver chamados abre Suporte e Chamados. Os acessos rápidos levam aos módulos já existentes sem duplicar funções.' },
+  { title: 'Prioridades', content: 'Avaliações em Rede usam os estados reais do ciclo para destacar preparação, aplicação, processamento e resultados. Suporte usa o consolidado autorizado de criticidade e prazos. A ausência de dados não é transformada em alerta artificial.' },
+  { title: 'Botões e ações', content: 'Ver prioridades abre o Monitoramento Pedagógico. Organizar, Processar, Acompanhar ou Ver avaliações abre Avaliações em Rede. Ver chamados aparece somente quando a conta também pode consultar os chamados. Os acessos rápidos levam aos módulos já existentes sem duplicar funções.' },
   { title: 'Regras e permissões', content: 'A Visão Geral aparece somente para contas com permissões municipais em mais de um domínio de gestão. Cada card é exibido somente quando a conta possui a permissão exigida pela API de origem.' },
   { title: 'Fluxo principal', content: 'Leia primeiro O que exige sua atenção, siga a ação contextual mais relevante e use Resultado da Rede para confirmar cobertura e desempenho. Os acessos rápidos servem apenas como apoio à navegação.' },
   { title: 'Mensagens e estados', content: 'Cada fonte carrega de forma independente. Se uma API falhar, as demais áreas continuam disponíveis e a falha é informada apenas no card correspondente. Sem base pedagógica, a tela mostra Sem base em vez de zero artificial.' },
@@ -40,6 +40,10 @@ function formatPercent(value?: number | null) {
   return value == null ? 'Sem base' : `${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
 }
 
+function quantityLabel(value: number, singular: string, plural: string) {
+  return `${value.toLocaleString('pt-BR')} ${value === 1 ? singular : plural}`;
+}
+
 function selectPedagogicalMetric(summary?: MonitoringSummary): SourceMetric | undefined {
   if (!summary?.sources.length) return undefined;
   return summary.sources.find((source) => source.sourceCode === 'NETWORK_ASSESSMENT' && source.studentsWithResults > 0)
@@ -52,14 +56,14 @@ function assessmentMessage(assessments: AssessmentView[]) {
   const sorted = [...assessments].sort((left, right) => assessmentPriority[left.status] - assessmentPriority[right.status]);
   const selected = sorted[0];
   const sameStatus = assessments.filter((assessment) => assessment.status === selected.status).length;
-  const quantity = `${sameStatus} ${sameStatus === 1 ? 'avaliação' : 'avaliações'}`;
+  const quantity = quantityLabel(sameStatus, 'avaliação', 'avaliações');
 
   switch (selected.status) {
     case 'APPLIED': return { text: `${quantity} com respostas recebidas aguardando processamento.`, action: 'Processar' };
     case 'PROCESSING': return { text: `${quantity} com processamento em andamento.`, action: 'Acompanhar' };
     case 'PREPARATION': return { text: `${quantity} em preparação, ainda exigindo configuração ou organização.`, action: 'Organizar' };
-    case 'READY': return { text: `${quantity} pronta(s) para aplicação.`, action: 'Ver avaliações' };
-    case 'PROCESSED': return { text: 'As avaliações do ano estão processadas; os resultados disponíveis podem ser consultados.', action: 'Ver resultados' };
+    case 'READY': return { text: `${quantity} ${sameStatus === 1 ? 'pronta' : 'prontas'} para aplicação.`, action: 'Ver avaliações' };
+    case 'PROCESSED': return { text: 'As avaliações do ano estão processadas e os resultados disponíveis podem ser consultados.', action: 'Ver resultados' };
     default: return { text: 'As avaliações cadastradas para o ano estão encerradas.', action: 'Ver avaliações' };
   }
 }
@@ -69,6 +73,7 @@ export function NetworkOverviewPage({ context, onUnauthorized, onNavigate }: Pro
   const canMonitoring = context.networkPermissions.includes('MONITORING_READ') || context.networkPermissions.includes('MONITORING_MANAGE');
   const canAssessment = context.networkPermissions.includes('ASSESSMENT_READ');
   const canSupport = context.networkPermissions.includes('SUPPORT_REPORT_READ');
+  const canOpenSupport = context.permissions.includes('SUPPORT_TICKET_READ');
 
   const [monitoring, setMonitoring] = useState<MonitoringSummary>();
   const [assessments, setAssessments] = useState<AssessmentView[]>([]);
@@ -120,9 +125,9 @@ export function NetworkOverviewPage({ context, onUnauthorized, onNavigate }: Pro
 
   const pedagogicalMetric = useMemo(() => selectPedagogicalMetric(monitoring), [monitoring]);
   const assessmentSummary = useMemo(() => assessmentMessage(assessments), [assessments]);
-  const supportAttention = support
-    ? support.totals.responseBreaches + support.totals.solutionBreaches
-    : 0;
+  const supportDeadlineOccurrences = support ? support.totals.responseBreaches + support.totals.solutionBreaches : 0;
+  const criticalSupport = support?.bySeverity.find((item) => item.severity === 'CRITICAL');
+  const criticalActive = criticalSupport ? Math.max(criticalSupport.total - criticalSupport.completed, 0) : 0;
 
   return (
     <main className="app-page">
@@ -156,7 +161,7 @@ export function NetworkOverviewPage({ context, onUnauthorized, onNavigate }: Pro
                 : assessmentError ? <StateMessage kind="error" title="Avaliações indisponíveis" message={assessmentError} />
                   : <>
                     <strong className="status-card__value">{assessmentSummary.text}</strong>
-                    <span>{assessments.length.toLocaleString('pt-BR')} avaliação(ões) cadastrada(s) no ano.</span>
+                    <span>{quantityLabel(assessments.length, 'avaliação cadastrada', 'avaliações cadastradas')} no ano.</span>
                     <div className="row-actions"><Button type="button" variant="ghost" onClick={() => onNavigate('avaliacoes')}>{assessmentSummary.action}</Button></div>
                   </>}
             </article>
@@ -168,9 +173,13 @@ export function NetworkOverviewPage({ context, onUnauthorized, onNavigate }: Pro
               {supportLoading ? <StateMessage title="Atualizando suporte" message="Aguarde enquanto os chamados são consolidados." />
                 : supportError ? <StateMessage kind="error" title="Suporte indisponível" message={supportError} />
                   : support ? <>
-                    <strong className="status-card__value">{supportAttention > 0 ? `${supportAttention} ocorrência(s) de prazo vencido` : 'Nenhum prazo vencido no consolidado'}</strong>
-                    <span>{support.totals.active.toLocaleString('pt-BR')} chamado(s) em andamento · {support.totals.responseBreaches} atraso(s) de resposta · {support.totals.solutionBreaches} atraso(s) de solução.</span>
-                    <div className="row-actions"><Button type="button" variant="ghost" onClick={() => onNavigate('suporte')}>Ver chamados</Button></div>
+                    <strong className="status-card__value">
+                      {criticalActive > 0 || supportDeadlineOccurrences > 0
+                        ? `${quantityLabel(criticalActive, 'chamado crítico ativo', 'chamados críticos ativos')} · ${quantityLabel(supportDeadlineOccurrences, 'ocorrência de prazo vencido', 'ocorrências de prazo vencido')}`
+                        : 'Nenhum chamado crítico ativo ou prazo vencido no consolidado'}
+                    </strong>
+                    <span>{quantityLabel(support.totals.active, 'chamado em andamento', 'chamados em andamento')} · {quantityLabel(support.totals.responseBreaches, 'atraso de resposta', 'atrasos de resposta')} · {quantityLabel(support.totals.solutionBreaches, 'atraso de solução', 'atrasos de solução')}.</span>
+                    {canOpenSupport ? <div className="row-actions"><Button type="button" variant="ghost" onClick={() => onNavigate('suporte')}>Ver chamados</Button></div> : null}
                   </> : <StateMessage title="Sem indicadores de suporte" message="Não há consolidado disponível para a Rede." />}
             </article>
           ) : null}
@@ -185,7 +194,7 @@ export function NetworkOverviewPage({ context, onUnauthorized, onNavigate }: Pro
               : pedagogicalMetric ? <div className="metric-grid">
                 <MetricCard label="Cobertura" value={formatPercent(pedagogicalMetric.coveragePercent)} detail={pedagogicalMetric.sourceLabel} />
                 <MetricCard label="Aproveitamento observado" value={formatPercent(pedagogicalMetric.achievementPercent)} detail="Regra calculada pela fonte de origem" />
-                <MetricCard label="Estudantes com resultado" value={pedagogicalMetric.studentsWithResults.toLocaleString('pt-BR')} detail={`${pedagogicalMetric.totalStudents.toLocaleString('pt-BR')} estudante(s) na base da fonte`} />
+                <MetricCard label="Estudantes com resultado" value={pedagogicalMetric.studentsWithResults.toLocaleString('pt-BR')} detail={`${quantityLabel(pedagogicalMetric.totalStudents, 'estudante', 'estudantes')} na base da fonte`} />
                 <MetricCard label="Avaliações com resultado" value={pedagogicalMetric.assessmentsWithResults.toLocaleString('pt-BR')} detail="Avaliações consideradas pela fonte selecionada" />
               </div> : <StateMessage title="Sem base pedagógica" message="Ainda não existem resultados suficientes para apresentar indicadores da Rede sem criar valores artificiais." />}
         </section>
@@ -198,7 +207,7 @@ export function NetworkOverviewPage({ context, onUnauthorized, onNavigate }: Pro
           {canAssessment ? <Button type="button" variant="ghost" onClick={() => onNavigate('avaliacoes')}>Avaliações em Rede</Button> : null}
           {context.permissions.includes('REPORT_READ') ? <Button type="button" variant="ghost" onClick={() => onNavigate('relatorios')}>Relatórios</Button> : null}
           {context.permissions.some((permission) => permission.startsWith('SCHOOL_')) ? <Button type="button" variant="ghost" onClick={() => onNavigate('secretaria')}>Secretaria Escolar</Button> : null}
-          {context.permissions.includes('SUPPORT_TICKET_READ') ? <Button type="button" variant="ghost" onClick={() => onNavigate('suporte')}>Suporte</Button> : null}
+          {canOpenSupport ? <Button type="button" variant="ghost" onClick={() => onNavigate('suporte')}>Suporte</Button> : null}
         </div>
       </section>
     </main>

@@ -38,6 +38,28 @@ A produção é composta por serviços independentes, sem `docker-compose.yml`:
 
 Detalhes: [`docs/arquitetura/00-arquitetura-easypanel.md`](docs/arquitetura/00-arquitetura-easypanel.md).
 
+## Avaliações em Rede
+
+A aba **Gabaritos** usa fluxo estruturado, sem exigir que o operador digite protocolos com `|`, `;` ou `=`:
+
+- questões são editadas por Número, Descritor, Habilidade e Alternativa correta;
+- inserção manual seleciona o estudante organizado e apresenta um campo por questão;
+- segunda chamada/online recebe o código de acesso e apresenta um campo por questão;
+- importação usa arquivo CSV UTF-8 aberto, com `identificador`, `matricula` ou `etiqueta` na primeira coluna e os números das questões nas demais colunas;
+- o CSV pode usar vírgula ou ponto e vírgula como separador e aceita campos entre aspas;
+- antes da confirmação, o frontend apresenta quantidade de registros, inconsistências por linha e problemas estruturais do arquivo;
+- após a confirmação, o backend continua responsável pela associação definitiva, preservação do payload de origem, histórico de submissões e resumo `ImportSummary` de válidos/inválidos.
+
+Exemplo de arquivo para uma avaliação com três questões:
+
+```csv
+identificador,1,2,3
+ALUNO-001,A,C,B
+AV000001-AL00000002,B,C,A
+```
+
+O formato do arquivo traduz apenas a entrada para os mesmos payloads JSON já aceitos pelos endpoints de Avaliações em Rede; regras de processamento e reprocessamento não são duplicadas no frontend.
+
 ## Documentação
 
 ### Requisitos

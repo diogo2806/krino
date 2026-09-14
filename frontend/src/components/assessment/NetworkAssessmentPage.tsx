@@ -1,4 +1,4 @@
-import { ClipboardCheck, FileText, Play, Plus, RefreshCw, Upload } from 'lucide-react';
+import { ClipboardCheck, FileText, Play, Plus, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, apiRequest } from '../../shared/api/client';
 import { Button } from '../button/Button';
@@ -8,20 +8,25 @@ import { TextAreaField } from '../form/TextAreaField';
 import { PageHeader } from '../layout/PageHeader';
 import { StateMessage } from '../state/StateMessage';
 import type { AccessContext } from '../workspace/types';
+import { AnswerSheetReceiver } from './AnswerSheetReceiver';
 import { AssessmentDialog } from './AssessmentDialog';
-import type { ArtifactView, AssessmentCatalog, AssessmentTab, AssessmentView, AssignmentView, ImportSummary, ProcessingRunView, QuestionView, ResultSummaryRow, SkillSummaryRow, ValidationSummary } from './types';
+import { AssessmentQuestionEditor } from './AssessmentQuestionEditor';
+import type { AnswerSheetPayload, ArtifactView, AssessmentCatalog, AssessmentTab, AssessmentView, AssignmentView, ImportSummary, ProcessingRunView, QuestionInput, QuestionView, ResultSummaryRow, SkillSummaryRow, ValidationSummary } from './types';
 
 type Props = { context: AccessContext; onUnauthorized: () => void; };
+type AnswerSource = 'IMPORT' | 'MANUAL' | 'ONLINE';
 
 const manualSections = [
   { title: 'Finalidade', content: 'Planejar, organizar, receber gabaritos, processar e consultar resultados das Avaliações Educacionais em Rede nas etapas Diagnóstica, Monitoramento e Final.' },
   { title: 'Campos e filtros', content: 'Ano letivo, etapa e unidade escolar filtram as avaliações. Cada avaliação define etapa/ano-série e, opcionalmente, componente curricular. Na organização, apenas turmas do mesmo ano letivo e etapa/ano-série podem ser vinculadas.' },
-  { title: 'Abas', content: 'Avaliações apresenta o catálogo; Organização vincula turmas e estudantes e gera materiais; Gabaritos configura questões/habilidades e recebe respostas; Processamento valida e consolida; Resultados apresenta Rede, escola, turma, estudante e habilidades/descritores.' },
-  { title: 'Botões e ações', content: 'Nova avaliação cria uma parametrização. Organizar estudantes cria a fotografia das matrículas ativas. Gerar lista, etiquetas, Manual do Aplicador, Ata de Ocorrências e acessos de segunda chamada produz os artefatos operacionais. Importar gabaritos preserva os dados de origem. Processar resultados cria uma nova execução auditável.' },
+  { title: 'Abas', content: 'Avaliações apresenta o catálogo; Organização vincula turmas e estudantes e gera materiais; Gabaritos configura questões em campos nomeados e recebe respostas por inserção manual, código online ou arquivo CSV com prévia; Processamento valida e consolida; Resultados apresenta Rede, escola, turma, estudante e habilidades/descritores.' },
+  { title: 'Questões e gabarito oficial', content: 'Cada questão possui Número, Descritor, Habilidade e Alternativa correta. É possível adicionar e remover linhas antes de salvar. Número, descritor, habilidade e alternativa são obrigatórios; números repetidos são identificados antes do envio.' },
+  { title: 'Recebimento de respostas', content: 'Inserção manual seleciona um estudante organizado e apresenta um campo por questão. Segunda chamada/online usa o código de acesso e os mesmos campos de resposta. Importar arquivo aceita CSV UTF-8 com identificador na primeira coluna e uma coluna para cada número de questão; a tela apresenta a prévia e inconsistências antes da confirmação.' },
+  { title: 'Botões e ações', content: 'Nova avaliação cria uma parametrização. Organizar estudantes cria a fotografia das matrículas ativas. Gerar lista, etiquetas, Manual do Aplicador, Ata de Ocorrências e acessos de segunda chamada produz os artefatos operacionais. Confirmar gabaritos envia os registros já revisados para a validação definitiva do backend. Processar resultados cria uma nova execução auditável.' },
   { title: 'Regras de uso', content: 'Questões e organização não podem ser alteradas depois do recebimento de gabaritos. Um novo gabarito para o mesmo estudante substitui somente a submissão ativa, preservando o histórico. Reprocessamentos nunca apagam execuções anteriores. Gabaritos sem associação válida ficam registrados como rejeitados.' },
   { title: 'Permissões', content: 'ASSESSMENT_READ consulta avaliações no escopo autorizado. ASSESSMENT_WRITE cria, organiza, registra presença/ocorrências e recebe gabaritos com escopo municipal. ASSESSMENT_PROCESS valida e processa. ASSESSMENT_RESULT_READ consulta resultados respeitando Rede ou unidade escolar.' },
-  { title: 'Fluxo principal', content: 'Crie a avaliação, configure questões e gabarito oficial, organize turmas, gere materiais, registre presença e ocorrências, importe respostas, confira válidos/inválidos, processe e consulte resultados e habilidades.' },
-  { title: 'Mensagens e estados', content: 'Preparação indica configuração inicial; Pronta indica estudantes organizados; Aplicada indica recebimento de respostas; Processando indica consolidação; Processada indica resultados disponíveis. Erros de associação e respostas incompletas são apresentados antes do processamento.' },
+  { title: 'Fluxo principal', content: 'Crie a avaliação, adicione as questões e o gabarito oficial, organize turmas, gere materiais, registre presença e ocorrências, escolha a origem das respostas, revise a prévia quando houver arquivo, confirme os gabaritos, confira válidos/inválidos, processe e consulte resultados e habilidades.' },
+  { title: 'Mensagens e estados', content: 'Preparação indica configuração inicial; Pronta indica estudantes organizados; Aplicada indica recebimento de respostas; Processando indica consolidação; Processada indica resultados disponíveis. A prévia de arquivo aponta linha e problema concreto; após o envio, o resumo definitivo informa registros válidos e inconsistentes.' },
 ];
 
 const stageLabel: Record<string, string> = { DIAGNOSTIC: 'Diagnóstica', MONITORING: 'Monitoramento', FINAL: 'Final' };
@@ -37,6 +42,10 @@ function query(params: Record<string, string>) {
 
 function formatPercent(value?: number) {
   return value == null ? 'Sem base' : `${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+}
+
+function quantityLabel(value: number, singular: string, plural: string) {
+  return `${value.toLocaleString('pt-BR')} ${value === 1 ? singular : plural}`;
 }
 
 export function NetworkAssessmentPage({ context, onUnauthorized }: Props) {
@@ -59,13 +68,10 @@ export function NetworkAssessmentPage({ context, onUnauthorized }: Props) {
   const [error, setError] = useState('');
 
   const [questions, setQuestions] = useState<QuestionView[]>([]);
-  const [questionText, setQuestionText] = useState('');
   const [classIds, setClassIds] = useState<number[]>([]);
   const [assignments, setAssignments] = useState<AssignmentView[]>([]);
   const [artifact, setArtifact] = useState<ArtifactView>();
   const [occurrenceText, setOccurrenceText] = useState('');
-  const [sourceType, setSourceType] = useState('IMPORT');
-  const [answerText, setAnswerText] = useState('');
   const [importSummary, setImportSummary] = useState<ImportSummary>();
   const [validation, setValidation] = useState<ValidationSummary>();
   const [runs, setRuns] = useState<ProcessingRunView[]>([]);
@@ -108,7 +114,6 @@ export function NetworkAssessmentPage({ context, onUnauthorized }: Props) {
         apiRequest<ProcessingRunView[]>(`/assessments/${id}/processing-runs`),
       ]);
       setQuestions(nextQuestions); setAssignments(nextAssignments); setRuns(nextRuns);
-      setQuestionText(nextQuestions.map((item) => `${item.sequenceNumber}|${item.descriptor}|${item.skill}|${item.correctOption}`).join('\n'));
       if (canProcess) setValidation(await apiRequest<ValidationSummary>(`/assessments/${id}/validation`));
     } catch (exception) { handleError(exception, 'Não foi possível carregar os detalhes da avaliação.'); }
   }, [selectedId, schoolId, canProcess, handleError]);
@@ -140,18 +145,12 @@ export function NetworkAssessmentPage({ context, onUnauthorized }: Props) {
     } catch (exception) { handleError(exception, 'Não foi possível criar a avaliação.'); throw exception; }
   };
 
-  const saveQuestions = async () => {
+  const saveQuestions = async (payload: QuestionInput[]) => {
     if (!selected) return;
     try {
-      const parsed = questionText.split('\n').map((line) => line.trim()).filter(Boolean).map((line, index) => {
-        const parts = line.split('|').map((part) => part.trim());
-        if (parts.length !== 4 || !Number(parts[0])) throw new Error(`Revise a linha ${index + 1}. Use número|descritor|habilidade|alternativa correta.`);
-        return { sequenceNumber: Number(parts[0]), descriptor: parts[1], skill: parts[2], correctOption: parts[3] };
-      });
-      if (!parsed.length) throw new Error('Informe ao menos uma questão.');
-      const next = await apiRequest<QuestionView[]>(`/assessments/${selected.id}/questions`, { method: 'PUT', body: JSON.stringify(parsed) });
+      const next = await apiRequest<QuestionView[]>(`/assessments/${selected.id}/questions`, { method: 'PUT', body: JSON.stringify(payload) });
       setQuestions(next); setError(''); await loadSelected();
-    } catch (exception) { handleError(exception, 'Não foi possível salvar as questões.'); }
+    } catch (exception) { handleError(exception, 'Não foi possível salvar as questões.'); throw exception; }
   };
 
   const organize = async () => {
@@ -184,24 +183,12 @@ export function NetworkAssessmentPage({ context, onUnauthorized }: Props) {
     } catch (exception) { handleError(exception, 'Não foi possível registrar a ocorrência.'); }
   };
 
-  const importAnswerSheets = async () => {
+  const importAnswerSheets = async (sourceType: AnswerSource, sheets: AnswerSheetPayload[]) => {
     if (!selected) return;
     try {
-      const sheets = answerText.split('\n').map((line) => line.trim()).filter(Boolean).map((line, index) => {
-        const parts = line.split(';').map((part) => part.trim()).filter(Boolean);
-        if (parts.length < 2) throw new Error(`Revise a linha ${index + 1}. Informe o identificador e ao menos uma resposta.`);
-        const answers: Record<number, string> = {};
-        for (const part of parts.slice(1)) {
-          const [sequence, option] = part.split('=').map((value) => value.trim());
-          if (!Number(sequence) || !option) throw new Error(`Revise a resposta "${part}" na linha ${index + 1}. Use questão=alternativa.`);
-          answers[Number(sequence)] = option;
-        }
-        return sourceType === 'ONLINE' ? { onlineAccessCode: parts[0], answers } : parts[0].startsWith('AV') ? { labelCode: parts[0], answers } : { registration: parts[0], answers };
-      });
-      if (!sheets.length) throw new Error('Informe ao menos um gabarito para importar.');
       const next = await apiRequest<ImportSummary>(`/assessments/${selected.id}/answer-sheets`, { method: 'POST', body: JSON.stringify({ sourceType, sheets }) });
       setImportSummary(next); setError(''); await loadSelected();
-    } catch (exception) { handleError(exception, 'Não foi possível importar os gabaritos.'); }
+    } catch (exception) { handleError(exception, 'Não foi possível registrar os gabaritos.'); throw exception; }
   };
 
   const processAssessment = async () => {
@@ -224,12 +211,12 @@ export function NetworkAssessmentPage({ context, onUnauthorized }: Props) {
 
     <div className="assessment-tabs" role="tablist" aria-label="Etapas da Avaliação em Rede">{tabs.map((item) => <button key={item.id} type="button" role="tab" aria-selected={tab === item.id} className={`assessment-tab${tab === item.id ? ' assessment-tab--active' : ''}`} onClick={() => setTab(item.id)}>{item.label}</button>)}</div>
 
-    {loading ? <StateMessage title="Carregando avaliações" message="Aguarde enquanto os dados são consultados." /> : tab === 'assessments' ? <AssessmentList assessments={assessments} selectedId={selectedId} onSelect={setSelectedId} /> : !selected ? <StateMessage title="Selecione uma avaliação" message="Escolha uma avaliação no filtro acima para continuar." /> : tab === 'organization' ? <section className="assessment-section"><SectionHeading title="Organização e materiais" description={`${selected.schoolCount} escola(s), ${selected.classCount} turma(s) e ${selected.studentCount} estudante(s) organizados.`} />
+    {loading ? <StateMessage title="Carregando avaliações" message="Aguarde enquanto os dados são consultados." /> : tab === 'assessments' ? <AssessmentList assessments={assessments} selectedId={selectedId} onSelect={setSelectedId} /> : !selected ? <StateMessage title="Selecione uma avaliação" message="Escolha uma avaliação no filtro acima para continuar." /> : tab === 'organization' ? <section className="assessment-section"><SectionHeading title="Organização e materiais" description={`${quantityLabel(selected.schoolCount, 'escola', 'escolas')}, ${quantityLabel(selected.classCount, 'turma', 'turmas')} e ${quantityLabel(selected.studentCount, 'estudante organizado', 'estudantes organizados')}.`} />
       {canWrite ? <><div className="assessment-class-grid">{eligibleClasses.length ? eligibleClasses.map((item) => <label className="assessment-check" key={item.id}><input type="checkbox" checked={classIds.includes(item.id)} onChange={(event) => setClassIds((current) => event.target.checked ? [...current, item.id] : current.filter((id) => id !== item.id))} /><span><strong>{item.name}</strong><small>{catalog?.schools.find((school) => school.id === item.schoolId)?.name} · {item.stage}</small></span></label>) : <StateMessage title="Nenhuma turma compatível" message="Cadastre ou selecione turmas com o mesmo ano letivo e etapa/ano-série da avaliação." />}</div><div className="assessment-actions"><Button type="button" variant="primary" onClick={() => void organize()}><ClipboardCheck aria-hidden="true" size={17} />Organizar estudantes</Button><Button type="button" onClick={() => void generateArtifact('ATTENDANCE_LIST')}>Lista de presença</Button><Button type="button" onClick={() => void generateArtifact('LABELS')}>Etiquetas</Button><Button type="button" onClick={() => void generateArtifact('APPLICATOR_MANUAL')}>Manual do Aplicador</Button><Button type="button" onClick={() => void generateArtifact('INCIDENT_MINUTES')}>Ata de Ocorrências</Button><Button type="button" onClick={() => void generateArtifact('MAKEUP_ACCESS')}>Segunda chamada</Button></div><div className="assessment-occurrence"><TextAreaField name="assessmentOccurrence" label="Registrar ocorrência" value={occurrenceText} onChange={(event) => setOccurrenceText(event.target.value)} placeholder="Descreva de forma objetiva o que ocorreu durante a aplicação." /><Button type="button" onClick={() => void recordOccurrence()}>Registrar ocorrência</Button></div></> : null}
       {artifact ? <ArtifactPanel artifact={artifact} /> : null}<AssignmentsTable assignments={assignments} canWrite={canWrite} onAttendance={updateAttendance} />
-    </section> : tab === 'answer-sheets' ? <section className="assessment-section"><SectionHeading title="Questões e gabaritos" description={`Questões configuradas: ${questions.length}. Os dados brutos recebidos são preservados para rastreabilidade.`} />
-      {canWrite ? <><TextAreaField name="assessmentQuestions" label="Questões, descritores e habilidades" rows={8} value={questionText} onChange={(event) => setQuestionText(event.target.value)} hint="Uma questão por linha: número|descritor|habilidade|alternativa correta. Ex.: 1|D01|Resolver problemas de adição|A" /><div className="assessment-actions"><Button type="button" onClick={() => void saveQuestions()}>Salvar questões e gabarito oficial</Button></div><SelectField name="answerSource" label="Origem das respostas" value={sourceType} onChange={(event) => setSourceType(event.target.value)} options={[{ value: 'IMPORT', label: 'Importar gabaritos' }, { value: 'MANUAL', label: 'Inserção manual' }, { value: 'ONLINE', label: 'Segunda chamada/online' }]} /><TextAreaField name="answerSheets" label="Respostas" rows={8} value={answerText} onChange={(event) => setAnswerText(event.target.value)} hint={sourceType === 'ONLINE' ? 'Uma linha por estudante: código de acesso;1=A;2=B;3=C' : 'Uma linha por estudante: matrícula ou código da etiqueta;1=A;2=B;3=C'} /><Button type="button" variant="primary" onClick={() => void importAnswerSheets()}><Upload aria-hidden="true" size={17} />Importar gabaritos</Button></> : null}
-      {importSummary ? <ImportPanel summary={importSummary} /> : <StateMessage title="Nenhum lote importado nesta sessão" message="Antes de processar, o sistema apresentará registros válidos, inválidos e rejeitados por associação." />}
+    </section> : tab === 'answer-sheets' ? <section className="assessment-section"><SectionHeading title="Questões e gabaritos" description={`${quantityLabel(questions.length, 'questão configurada', 'questões configuradas')}. Os dados brutos recebidos são preservados para rastreabilidade.`} />
+      {canWrite ? <><AssessmentQuestionEditor questions={questions} disabled={!['PREPARATION', 'READY'].includes(selected.status)} onSave={saveQuestions} /><AnswerSheetReceiver questions={questions} assignments={assignments} onSubmit={importAnswerSheets} /></> : <StateMessage title="Consulta de gabaritos" message="Sua conta pode consultar esta avaliação, mas não possui permissão municipal para configurar questões ou receber respostas." />}
+      {importSummary ? <ImportPanel summary={importSummary} /> : <StateMessage title="Nenhum lote confirmado nesta sessão" message="A prévia do arquivo aparece antes da confirmação. Depois do envio, este espaço mostra a validação definitiva dos registros." />}
     </section> : tab === 'processing' ? <section className="assessment-section"><SectionHeading title="Processamento de gabaritos" description="Confira inconsistências antes de processar. Cada reprocessamento cria uma execução independente e auditável." />
       {validation ? <div className="assessment-metrics"><Metric label="Registros lidos" value={validation.recordsRead} /><Metric label="Válidos" value={validation.valid} /><Metric label="Com inconsistências" value={validation.invalid + validation.associationRejected} /><Metric label="Associação rejeitada" value={validation.associationRejected} /></div> : <StateMessage title="Validação indisponível" message="Sua conta não possui permissão de processamento ou ainda não há dados para validar." />}
       {canProcess ? <div className="assessment-actions"><Button type="button" variant="primary" onClick={() => void processAssessment()} disabled={!validation?.valid}><Play aria-hidden="true" size={17} />{runs.length ? 'Reprocessar resultados' : 'Processar resultados'}</Button></div> : null}<ProcessingHistory runs={runs} />
@@ -243,12 +230,12 @@ export function NetworkAssessmentPage({ context, onUnauthorized }: Props) {
 
 function AssessmentList({ assessments, selectedId, onSelect }: { assessments: AssessmentView[]; selectedId: string; onSelect: (id: string) => void; }) {
   if (!assessments.length) return <StateMessage title="Nenhuma avaliação encontrada" message="Não existem avaliações para os filtros selecionados." />;
-  return <section className="assessment-section"><SectionHeading title="Avaliações disponíveis" description="Selecione uma avaliação para acessar organização, gabaritos, processamento e resultados." /><div className="table-wrap"><table className="data-table"><thead><tr><th>Avaliação</th><th>Etapa</th><th>Ano/série</th><th>Situação</th><th>Escopo</th><th>Ação</th></tr></thead><tbody>{assessments.map((item) => <tr key={item.id} className={selectedId === item.id.toString() ? 'assessment-row--selected' : undefined}><td><strong>{item.name}</strong><div className="muted">{item.componentName ?? 'Multidisciplinar'}</div></td><td>{stageLabel[item.stage] ?? item.stage}</td><td>{item.academicYear} · {item.gradeStage}</td><td>{statusLabel[item.status] ?? item.status}</td><td>{item.schoolCount} escola(s) · {item.classCount} turma(s) · {item.studentCount} estudante(s)</td><td><Button type="button" variant="ghost" onClick={() => onSelect(item.id.toString())}>Selecionar</Button></td></tr>)}</tbody></table></div></section>;
+  return <section className="assessment-section"><SectionHeading title="Avaliações disponíveis" description="Selecione uma avaliação para acessar organização, gabaritos, processamento e resultados." /><div className="table-wrap"><table className="data-table"><thead><tr><th>Avaliação</th><th>Etapa</th><th>Ano/série</th><th>Situação</th><th>Escopo</th><th>Ação</th></tr></thead><tbody>{assessments.map((item) => <tr key={item.id} className={selectedId === item.id.toString() ? 'assessment-row--selected' : undefined}><td><strong>{item.name}</strong><div className="muted">{item.componentName ?? 'Multidisciplinar'}</div></td><td>{stageLabel[item.stage] ?? item.stage}</td><td>{item.academicYear} · {item.gradeStage}</td><td>{statusLabel[item.status] ?? item.status}</td><td>{quantityLabel(item.schoolCount, 'escola', 'escolas')} · {quantityLabel(item.classCount, 'turma', 'turmas')} · {quantityLabel(item.studentCount, 'estudante', 'estudantes')}</td><td><Button type="button" variant="ghost" onClick={() => onSelect(item.id.toString())}>Selecionar</Button></td></tr>)}</tbody></table></div></section>;
 }
 
 function SectionHeading({ title, description }: { title: string; description: string; }) { return <div className="assessment-section__heading"><div><h2>{title}</h2><p>{description}</p></div></div>; }
 function Metric({ label, value }: { label: string; value: number; }) { return <article className="assessment-metric"><span>{label}</span><strong>{value.toLocaleString('pt-BR')}</strong></article>; }
-function ArtifactPanel({ artifact }: { artifact: ArtifactView; }) { return <section className="assessment-artifact"><div className="assessment-artifact__heading"><FileText aria-hidden="true" size={19} /><div><strong>{artifact.title}</strong><span>{artifact.lineCount} linha(s) gerada(s)</span></div></div><pre>{artifact.lines.join('\n')}</pre></section>; }
+function ArtifactPanel({ artifact }: { artifact: ArtifactView; }) { return <section className="assessment-artifact"><div className="assessment-artifact__heading"><FileText aria-hidden="true" size={19} /><div><strong>{artifact.title}</strong><span>{quantityLabel(artifact.lineCount, 'linha gerada', 'linhas geradas')}</span></div></div><pre>{artifact.lines.join('\n')}</pre></section>; }
 function ImportPanel({ summary }: { summary: ImportSummary; }) { return <section className="assessment-import"><div className="assessment-metrics"><Metric label="Registros lidos" value={summary.recordsRead} /><Metric label="Válidos" value={summary.valid} /><Metric label="Com inconsistências" value={summary.invalid} /></div>{summary.items.some((item) => item.status !== 'VALID') ? <ul>{summary.items.filter((item) => item.status !== 'VALID').map((item, index) => <li key={`${item.identifier}-${index}`}><strong>{item.identifier}:</strong> {item.message}</li>)}</ul> : <StateMessage title="Lote válido" message="Todos os gabaritos do lote estão aptos ao processamento." />}</section>; }
 
 function AssignmentsTable({ assignments, canWrite, onAttendance }: { assignments: AssignmentView[]; canWrite: boolean; onAttendance: (id: number, status: string) => Promise<void>; }) {

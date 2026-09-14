@@ -135,6 +135,8 @@ export function AnswerSheetReceiver({ questions, assignments, onSubmit }: Props)
       setStudentAssignmentId('');
       setOnlineAccessCode('');
       setError('');
+    } catch {
+      setError('O envio não foi concluído. Os dados foram mantidos para uma nova tentativa.');
     } finally {
       setSubmitting(false);
     }
@@ -154,9 +156,7 @@ export function AnswerSheetReceiver({ questions, assignments, onSubmit }: Props)
     if (headers.length < 2) errors.push('O arquivo deve ter a coluna identificador e ao menos uma coluna de questão.');
 
     const identifierHeader = normalizedHeader(headers[0] ?? '');
-    if (!['identificador', 'matricula', 'etiqueta'].includes(identifierHeader)) {
-      errors.push('A primeira coluna deve se chamar identificador, matricula ou etiqueta.');
-    }
+    if (!['identificador', 'matricula', 'etiqueta'].includes(identifierHeader)) errors.push('A primeira coluna deve se chamar identificador, matricula ou etiqueta.');
 
     const columnSequences = headers.slice(1).map((header) => questionSequenceFromHeader(header));
     const seen = new Set<number>();
@@ -190,10 +190,7 @@ export function AnswerSheetReceiver({ questions, assignments, onSubmit }: Props)
         if (answer.length > 20) rowIssues.push(`questão ${sequence} com resposta acima de 20 caracteres`);
       });
 
-      if (identifier && !assignments.some((item) => item.registration === identifier || item.labelCode === identifier)) {
-        rowIssues.push('estudante não localizado entre os organizados nesta avaliação');
-      }
-
+      if (identifier && !assignments.some((item) => item.registration === identifier || item.labelCode === identifier)) rowIssues.push('estudante não localizado entre os organizados nesta avaliação');
       return { line: lineNumber, identifier, answers: rowAnswers, issues: rowIssues };
     });
 
@@ -201,7 +198,6 @@ export function AnswerSheetReceiver({ questions, assignments, onSubmit }: Props)
       if (lineNumbers.length > 1) errors.push(`O identificador ${identifier} está repetido nas linhas ${lineNumbers.join(', ')}.`);
     });
     if (rows.length === 0) errors.push('O arquivo possui cabeçalho, mas não possui registros de gabarito.');
-
     setPreview({ fileName: file.name, rows, errors });
   };
 
@@ -230,6 +226,8 @@ export function AnswerSheetReceiver({ questions, assignments, onSubmit }: Props)
       await onSubmit('IMPORT', sheets);
       setPreview(undefined);
       setError('');
+    } catch {
+      setError('O arquivo não foi confirmado. A prévia foi mantida para correção ou nova tentativa.');
     } finally {
       setSubmitting(false);
     }
@@ -240,57 +238,27 @@ export function AnswerSheetReceiver({ questions, assignments, onSubmit }: Props)
 
   return (
     <section className="assessment-editor" aria-labelledby="assessment-answer-receiver-title">
-      <div className="assessment-section__heading">
-        <div>
-          <h3 id="assessment-answer-receiver-title">Receber gabaritos</h3>
-          <p>Escolha a origem e registre as respostas sem montar códigos ou sequências delimitadas.</p>
-        </div>
-      </div>
+      <div className="assessment-section__heading"><div><h3 id="assessment-answer-receiver-title">Receber gabaritos</h3><p>Escolha a origem e registre as respostas sem montar códigos ou sequências delimitadas.</p></div></div>
 
-      <SelectField
-        name="answerSource"
-        label="Origem das respostas"
-        value={sourceType}
-        onChange={(event) => changeSource(event.target.value)}
-        options={[
-          { value: 'IMPORT', label: 'Importar arquivo CSV' },
-          { value: 'MANUAL', label: 'Inserção manual' },
-          { value: 'ONLINE', label: 'Segunda chamada/online' },
-        ]}
-      />
+      <SelectField name="answerSource" label="Origem das respostas" value={sourceType} onChange={(event) => changeSource(event.target.value)} options={[{ value: 'IMPORT', label: 'Importar arquivo CSV' }, { value: 'MANUAL', label: 'Inserção manual' }, { value: 'ONLINE', label: 'Segunda chamada/online' }]} />
 
       {questions.length === 0 ? <StateMessage title="Configure as questões primeiro" message="O recebimento de gabaritos fica disponível depois que o gabarito oficial possui ao menos uma questão." /> : null}
       {error ? <StateMessage kind="error" title="Revise o recebimento" message={error} /> : null}
 
-      {sourceType === 'IMPORT' ? (
-        <div className="assessment-upload-flow">
-          <label className="field" htmlFor="assessmentAnswerFile">
-            <span className="field__label">Arquivo de gabaritos</span>
-            <input id="assessmentAnswerFile" className="input" type="file" accept=".csv,text/csv" disabled={questions.length === 0 || submitting} onChange={(event) => void selectFile(event)} />
-            <span className="field__hint">Use CSV UTF-8. A primeira coluna deve ser identificador, matricula ou etiqueta; as demais colunas usam os números das questões, por exemplo: identificador,1,2,3.</span>
-          </label>
-
-          {preview ? (
-            <section className="assessment-import-preview" aria-live="polite">
-              <div className="assessment-artifact__heading"><FileUp aria-hidden="true" size={19} /><div><strong>{preview.fileName}</strong><span>Prévia antes da confirmação</span></div></div>
-              {preview.errors.length ? <StateMessage kind="error" title="Revise a estrutura do arquivo" message={preview.errors.join(' ')} /> : <div className="assessment-metrics"><article className="assessment-metric"><span>Registros lidos</span><strong>{preview.rows.length.toLocaleString('pt-BR')}</strong></article><article className="assessment-metric"><span>Sem inconsistência local</span><strong>{previewReady.toLocaleString('pt-BR')}</strong></article><article className="assessment-metric"><span>Precisam de revisão</span><strong>{previewWithIssues.length.toLocaleString('pt-BR')}</strong></article></div>}
-              {previewWithIssues.length ? <div><strong>Inconsistências encontradas na prévia</strong><ul>{previewWithIssues.slice(0, 50).map((row) => <li key={row.line}>Linha {row.line}{row.identifier ? ` · ${row.identifier}` : ''}: {row.issues.join('; ')}.</li>)}</ul>{previewWithIssues.length > 50 ? <p className="muted">Há mais {previewWithIssues.length - 50} registro(s) com inconsistências. Revise o arquivo antes da confirmação quando necessário.</p> : null}</div> : null}
-              {!preview.errors.length ? <p className="muted">A prévia identifica estrutura, respostas ausentes e estudantes conhecidos no escopo carregado. A validação definitiva de associação e processamento continua no backend.</p> : null}
-              <div className="assessment-actions"><Button type="button" variant="primary" disabled={submitting || preview.errors.length > 0 || preview.rows.length === 0} onClick={() => void confirmImport()}><Send aria-hidden="true" size={17} />{submitting ? 'Confirmando gabaritos...' : 'Confirmar gabaritos'}</Button></div>
-            </section>
-          ) : <StateMessage title="Nenhum arquivo selecionado" message="Selecione o CSV. Antes do envio, o KRINO mostrará quantos registros podem seguir e quais precisam de correção." />}
-        </div>
-      ) : (
-        <div className="assessment-structured-entry">
-          {sourceType === 'MANUAL' ? <SelectField name="manualAnswerStudent" label="Estudante" value={studentAssignmentId} onChange={(event) => { setStudentAssignmentId(event.target.value); setError(''); }} options={[{ value: '', label: assignments.length ? 'Selecione o estudante' : 'Nenhum estudante organizado' }, ...assignments.map((item) => ({ value: item.id.toString(), label: `${item.studentName} · ${item.registration} · ${item.className}` }))]} />
-            : <TextField name="onlineAccessCode" label="Código de acesso" value={onlineAccessCode} onChange={(event) => { setOnlineAccessCode(event.target.value); setError(''); }} maxLength={80} autoComplete="off" hint="Informe o código emitido para segunda chamada/online." required />}
-
-          <div className="assessment-answer-grid">
-            {questions.map((question) => <TextField key={question.id} name={`answer-${sourceType}-${question.id}`} label={`Questão ${question.sequenceNumber}`} value={answers[question.sequenceNumber] ?? ''} onChange={(event) => setAnswer(question.sequenceNumber, event.target.value)} maxLength={20} hint={`${question.descriptor} · ${question.skill}`} required />)}
-          </div>
-          <div className="assessment-actions"><Button type="button" variant="primary" disabled={submitting || questions.length === 0} onClick={() => void submitStructured()}><Send aria-hidden="true" size={17} />{submitting ? 'Registrando gabarito...' : sourceType === 'MANUAL' ? 'Registrar gabarito' : 'Registrar resposta online'}</Button></div>
-        </div>
-      )}
+      {sourceType === 'IMPORT' ? <div className="assessment-upload-flow">
+        <label className="field" htmlFor="assessmentAnswerFile"><span className="field__label">Arquivo de gabaritos</span><input id="assessmentAnswerFile" className="input" type="file" accept=".csv,text/csv" disabled={questions.length === 0 || submitting} onChange={(event) => void selectFile(event)} /><span className="field__hint">Use CSV UTF-8. A primeira coluna deve ser identificador, matricula ou etiqueta; as demais colunas usam os números das questões, por exemplo: identificador,1,2,3.</span></label>
+        {preview ? <section className="assessment-import-preview" aria-live="polite">
+          <div className="assessment-artifact__heading"><FileUp aria-hidden="true" size={19} /><div><strong>{preview.fileName}</strong><span>Prévia antes da confirmação</span></div></div>
+          {preview.errors.length ? <StateMessage kind="error" title="Revise a estrutura do arquivo" message={preview.errors.join(' ')} /> : <div className="assessment-metrics"><article className="assessment-metric"><span>Registros lidos</span><strong>{preview.rows.length.toLocaleString('pt-BR')}</strong></article><article className="assessment-metric"><span>Sem inconsistência local</span><strong>{previewReady.toLocaleString('pt-BR')}</strong></article><article className="assessment-metric"><span>Precisam de revisão</span><strong>{previewWithIssues.length.toLocaleString('pt-BR')}</strong></article></div>}
+          {previewWithIssues.length ? <div><strong>Inconsistências encontradas na prévia</strong><ul>{previewWithIssues.slice(0, 50).map((row) => <li key={row.line}>Linha {row.line}{row.identifier ? ` · ${row.identifier}` : ''}: {row.issues.join('; ')}.</li>)}</ul>{previewWithIssues.length > 50 ? <p className="muted">Há mais {previewWithIssues.length - 50} registro(s) com inconsistências. Revise o arquivo antes da confirmação quando necessário.</p> : null}</div> : null}
+          {!preview.errors.length ? <p className="muted">A prévia identifica estrutura, respostas ausentes e estudantes conhecidos no escopo carregado. A validação definitiva de associação e processamento continua no backend.</p> : null}
+          <div className="assessment-actions"><Button type="button" variant="primary" disabled={submitting || preview.errors.length > 0 || preview.rows.length === 0} onClick={() => void confirmImport()}><Send aria-hidden="true" size={17} />{submitting ? 'Confirmando gabaritos...' : 'Confirmar gabaritos'}</Button></div>
+        </section> : <StateMessage title="Nenhum arquivo selecionado" message="Selecione o CSV. Antes do envio, o KRINO mostrará quantos registros podem seguir e quais precisam de correção." />}
+      </div> : <div className="assessment-structured-entry">
+        {sourceType === 'MANUAL' ? <SelectField name="manualAnswerStudent" label="Estudante" value={studentAssignmentId} onChange={(event) => { setStudentAssignmentId(event.target.value); setError(''); }} options={[{ value: '', label: assignments.length ? 'Selecione o estudante' : 'Nenhum estudante organizado' }, ...assignments.map((item) => ({ value: item.id.toString(), label: `${item.studentName} · ${item.registration} · ${item.className}` }))]} /> : <TextField name="onlineAccessCode" label="Código de acesso" value={onlineAccessCode} onChange={(event) => { setOnlineAccessCode(event.target.value); setError(''); }} maxLength={80} autoComplete="off" hint="Informe o código emitido para segunda chamada/online." required />}
+        <div className="assessment-answer-grid">{questions.map((question) => <TextField key={question.id} name={`answer-${sourceType}-${question.id}`} label={`Questão ${question.sequenceNumber}`} value={answers[question.sequenceNumber] ?? ''} onChange={(event) => setAnswer(question.sequenceNumber, event.target.value)} maxLength={20} hint={`${question.descriptor} · ${question.skill}`} required />)}</div>
+        <div className="assessment-actions"><Button type="button" variant="primary" disabled={submitting || questions.length === 0} onClick={() => void submitStructured()}><Send aria-hidden="true" size={17} />{submitting ? 'Registrando gabarito...' : sourceType === 'MANUAL' ? 'Registrar gabarito' : 'Registrar resposta online'}</Button></div>
+      </div>}
     </section>
   );
 }

@@ -181,6 +181,7 @@ export function AnswerSheetReceiver({ questions, assignments, onSubmit }: Props)
 
       if (!identifier) rowIssues.push('identificador não informado');
       else identifiers.set(identifier, [...(identifiers.get(identifier) ?? []), lineNumber]);
+      if (cells.length !== headers.length) rowIssues.push(`quantidade de colunas diferente do cabeçalho (${cells.length} recebidas; ${headers.length} esperadas)`);
 
       columnSequences.forEach((sequence, columnIndex) => {
         if (sequence == null || !questionSequences.has(sequence)) return;
@@ -194,6 +195,7 @@ export function AnswerSheetReceiver({ questions, assignments, onSubmit }: Props)
       return { line: lineNumber, identifier, answers: rowAnswers, issues: rowIssues };
     });
 
+    if (rows.some((row) => row.issues.some((issue) => issue.includes('acima de 20 caracteres')))) errors.push('Existem respostas acima do limite de 20 caracteres. Corrija o arquivo antes de confirmar.');
     identifiers.forEach((lineNumbers, identifier) => {
       if (lineNumbers.length > 1) errors.push(`O identificador ${identifier} está repetido nas linhas ${lineNumbers.join(', ')}.`);
     });
@@ -239,9 +241,7 @@ export function AnswerSheetReceiver({ questions, assignments, onSubmit }: Props)
   return (
     <section className="assessment-editor" aria-labelledby="assessment-answer-receiver-title">
       <div className="assessment-section__heading"><div><h3 id="assessment-answer-receiver-title">Receber gabaritos</h3><p>Escolha a origem e registre as respostas sem montar códigos ou sequências delimitadas.</p></div></div>
-
       <SelectField name="answerSource" label="Origem das respostas" value={sourceType} onChange={(event) => changeSource(event.target.value)} options={[{ value: 'IMPORT', label: 'Importar arquivo CSV' }, { value: 'MANUAL', label: 'Inserção manual' }, { value: 'ONLINE', label: 'Segunda chamada/online' }]} />
-
       {questions.length === 0 ? <StateMessage title="Configure as questões primeiro" message="O recebimento de gabaritos fica disponível depois que o gabarito oficial possui ao menos uma questão." /> : null}
       {error ? <StateMessage kind="error" title="Revise o recebimento" message={error} /> : null}
 

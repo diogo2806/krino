@@ -1,6 +1,6 @@
 # KRINO
 
-Sistema integrado de gestão educacional baseado nos requisitos do Processo Licitatório nº 010/2026 FME / Pregão Eletrônico nº 007/2026 FME da Secretaria Municipal de Educação de Itaíba/PE.
+Da rotina escolar à decisão pedagógica, em uma única plataforma. O KRINO conecta Secretaria Escolar, Diário de Classe, Avaliações em Rede, Monitoramento Pedagógico e comunicação usando os mesmos dados da Rede, com implementação baseada nos requisitos do Processo Licitatório nº 010/2026 FME / Pregão Eletrônico nº 007/2026 FME da Secretaria Municipal de Educação de Itaíba/PE.
 
 ## Estrutura
 

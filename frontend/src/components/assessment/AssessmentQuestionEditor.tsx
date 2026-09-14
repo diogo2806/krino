@@ -91,6 +91,8 @@ export function AssessmentQuestionEditor({ questions, onSave }: Props) {
     try {
       await onSave(payload);
       setErrors([]);
+    } catch {
+      // A página apresenta a mensagem devolvida pela API sem descartar o que foi digitado.
     } finally {
       setSaving(false);
     }
@@ -112,59 +114,16 @@ export function AssessmentQuestionEditor({ questions, onSave }: Props) {
       <div className="assessment-question-list">
         {rows.map((row, index) => (
           <article className="assessment-question-row" key={row.key}>
-            <TextField
-              name={`questionSequence-${row.key}`}
-              label="Número"
-              type="number"
-              min={1}
-              value={row.sequenceNumber}
-              onChange={(event) => updateQuestion(row.key, 'sequenceNumber', event.target.value)}
-              aria-label={`Número da questão ${index + 1}`}
-              required
-            />
-            <TextField
-              name={`questionDescriptor-${row.key}`}
-              label="Descritor"
-              maxLength={180}
-              value={row.descriptor}
-              onChange={(event) => updateQuestion(row.key, 'descriptor', event.target.value)}
-              required
-            />
-            <TextField
-              name={`questionSkill-${row.key}`}
-              label="Habilidade"
-              maxLength={300}
-              value={row.skill}
-              onChange={(event) => updateQuestion(row.key, 'skill', event.target.value)}
-              required
-            />
-            <TextField
-              name={`questionCorrect-${row.key}`}
-              label="Alternativa correta"
-              maxLength={20}
-              value={row.correctOption}
-              onChange={(event) => updateQuestion(row.key, 'correctOption', event.target.value.toUpperCase())}
-              required
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              className="assessment-question-remove"
-              aria-label={`Remover questão ${row.sequenceNumber || index + 1}`}
-              title={`Remover questão ${row.sequenceNumber || index + 1}`}
-              onClick={() => setRows((current) => current.filter((item) => item.key !== row.key))}
-            >
-              <Trash2 aria-hidden="true" size={17} />Remover
-            </Button>
+            <TextField name={`questionSequence-${row.key}`} label="Número" type="number" min={1} value={row.sequenceNumber} onChange={(event) => updateQuestion(row.key, 'sequenceNumber', event.target.value)} aria-label={`Número da questão ${index + 1}`} required />
+            <TextField name={`questionDescriptor-${row.key}`} label="Descritor" maxLength={180} value={row.descriptor} onChange={(event) => updateQuestion(row.key, 'descriptor', event.target.value)} required />
+            <TextField name={`questionSkill-${row.key}`} label="Habilidade" maxLength={300} value={row.skill} onChange={(event) => updateQuestion(row.key, 'skill', event.target.value)} required />
+            <TextField name={`questionCorrect-${row.key}`} label="Alternativa correta" maxLength={20} value={row.correctOption} onChange={(event) => updateQuestion(row.key, 'correctOption', event.target.value.toUpperCase())} required />
+            <Button type="button" variant="ghost" className="assessment-question-remove" aria-label={`Remover questão ${row.sequenceNumber || index + 1}`} title={`Remover questão ${row.sequenceNumber || index + 1}`} onClick={() => setRows((current) => current.filter((item) => item.key !== row.key))}><Trash2 aria-hidden="true" size={17} />Remover</Button>
           </article>
         ))}
       </div>
 
-      <div className="assessment-actions">
-        <Button type="button" variant="primary" disabled={saving} onClick={() => void save()}>
-          {saving ? 'Salvando questões...' : 'Salvar questões e gabarito oficial'}
-        </Button>
-      </div>
+      <div className="assessment-actions"><Button type="button" variant="primary" disabled={saving} onClick={() => void save()}>{saving ? 'Salvando questões...' : 'Salvar questões e gabarito oficial'}</Button></div>
     </section>
   );
 }

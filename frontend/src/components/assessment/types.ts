@@ -25,6 +25,13 @@ export type ComponentOption = { id: number; code: string; name: string; };
 export type AssessmentCatalog = { schools: SchoolOption[]; classes: ClassOption[]; components: ComponentOption[]; };
 
 export type QuestionView = { id: number; sequenceNumber: number; descriptor: string; skill: string; correctOption: string; };
+export type QuestionInput = { sequenceNumber: number; descriptor: string; skill: string; correctOption: string; };
+export type AnswerSheetPayload = {
+  registration?: string;
+  labelCode?: string;
+  onlineAccessCode?: string;
+  answers: Record<number, string>;
+};
 export type AssignmentView = { id: number; studentId: number; registration: string; studentName: string; schoolId: number; schoolName: string; classId: number; className: string; attendanceStatus: string; labelCode: string; packageCode: string; };
 export type ArtifactView = { type: string; title: string; generatedAt: string; lineCount: number; lines: string[]; };
 export type ValidationSummary = { recordsRead: number; valid: number; invalid: number; associationRejected: number; };

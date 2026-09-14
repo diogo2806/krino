@@ -45,3 +45,36 @@ Os quantitativos podem variar durante a execução e não devem ser tratados com
 ## 5. Foco para a POC
 
 A POC exige demonstração operacional. Slides, imagens, vídeos gravados, protótipos estáticos e promessas de desenvolvimento futuro não substituem a funcionalidade em execução. Portanto, o ambiente de demonstração deve possuir dados fictícios, fluxos completos e capacidade de criar, alterar, consultar, processar e emitir documentos/relatórios durante a sessão.
+
+## 6. Visão inicial da gestão municipal
+
+Contas com permissões municipais em mais de um domínio de gestão e acesso a pelo menos uma fonte consolidada de Monitoramento Pedagógico, Avaliações em Rede ou indicadores de Suporte devem iniciar na **Visão Geral da Rede**. Perfis especializados com um único fluxo principal continuam entrando diretamente no módulo operacional correspondente.
+
+A Visão Geral da Rede deve:
+
+- apresentar primeiro o que exige atenção e a próxima ação possível;
+- reutilizar os resultados e regras dos módulos de origem, sem criar cálculos paralelos;
+- mostrar o resultado pedagógico da Rede quando houver permissão municipal de Monitoramento;
+- destacar o estado real do ciclo das Avaliações em Rede quando houver `ASSESSMENT_READ` municipal;
+- mostrar indicadores de criticidade e prazo do Suporte quando houver `SUPPORT_REPORT_READ` municipal;
+- ocultar fontes e atalhos sem permissão;
+- manter cada fonte independente, para que a falha de uma API não inutilize as demais áreas;
+- usar `Sem base` ou mensagem de ausência quando não houver dados suficientes, sem converter ausência em zero ou alerta artificial;
+- encaminhar as ações para os módulos existentes, preservando as validações e permissões do fluxo de destino.
+
+```text
++------------------------------------------------------------------------+
+| KRINO · Visão Geral da Rede                               [Manual]      |
++------------------------------------------------------------------------+
+| Rede municipal · Ano letivo atual                                     |
+|                                                                        |
+| O que exige sua atenção                                                |
+| [ Resultado pedagógico ] [ Avaliações em Rede ] [ Suporte ]           |
+|                                                                        |
+| Resultado da Rede                                                      |
+| [ Cobertura ] [ Aproveitamento ] [ Estudantes ] [ Avaliações ]        |
+|                                                                        |
+| Acessos rápidos                                                        |
+| [Monitoramento] [Avaliações] [Relatórios] [Secretaria] [Suporte]      |
++------------------------------------------------------------------------+
+```
